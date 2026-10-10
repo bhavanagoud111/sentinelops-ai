@@ -1,0 +1,28 @@
+# Project-local tool caches (uv, managed Python, npm) — keep everything inside the repo
+.cache/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Node (Phase 5)
+node_modules/

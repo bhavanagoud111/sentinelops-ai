@@ -1,0 +1,77 @@
+# Recording + alerting rules for the demo workload.
+# Source metric: OTel stable HTTP semconv `http.server.request.duration` (seconds),
+# exported by the collector as http_server_request_duration_seconds_*.
+groups:
+  - name: demo-services.recording
+    interval: 10s
+    rules:
+      - record: service:http_requests:rate1m
+        expr: >
+          sum by (service_name) (
+            rate(http_server_request_duration_seconds_count[1m])
+          )
+
+      - record: service:http_errors_5xx:rate1m
+        expr: >
+          sum by (service_name) (
+            rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[1m])
+          )
+
+      - record: service:http_errors_5xx:ratio1m
+        expr: >
+          (service:http_errors_5xx:rate1m or service:http_requests:rate1m * 0)
+          / service:http_requests:rate1m
+
+      - record: service:http_latency_seconds:p95_1m
+        expr: >
+          histogram_quantile(0.95,
+            sum by (service_name, le) (
+              rate(http_server_request_duration_seconds_bucket[1m])
+            )
+          )
+
+  - name: demo-services.alerts
+    rules:
+      # Scenario A — checkout 5xx spike due to bad configuration.
+      - alert: CheckoutHigh5xxRate
+        expr: >
+          service:http_errors_5xx:ratio1m{service_name="checkout"} > 0.05
+          and service:http_requests:rate1m{service_name="checkout"} > 0.5
+        for: 1m
+        labels:
+          severity: critical
+          service: checkout
+          team: payments
+          scenario: A
+        annotations:
+          summary: "checkout 5xx ratio above 5%"
+          description: >-
+            {{ $value | humanizePercentage }} of checkout requests are failing with 5xx
+            over the last minute.
+          runbook_url: "docs/runbooks.md#checkout-high-5xx-rate"
+
+      # Scenario B — inventory latency due to dependency delay.
+      - alert: InventoryHighLatencyP95
+        expr: service:http_latency_seconds:p95_1m{service_name="inventory"} > 0.5
+        for: 2m
+        labels:
+          severity: high
+          service: inventory
+          team: fulfilment
+          scenario: B
+        annotations:
+          summary: "inventory p95 latency above 500ms"
+          description: "inventory p95 latency is {{ $value | humanizeDuration }}."
+          runbook_url: "docs/runbooks.md#inventory-high-latency"
+
+  - name: platform.alerts
+    rules:
+      - alert: TelemetryPipelineDown
+        expr: up{job="otel-collector-apps"} == 0
+        for: 1m
+        labels:
+          severity: high
+          service: otel-collector
+        annotations:
+          summary: "OTel collector metrics endpoint is down"
+          description: "Demo-service metrics are not reaching Prometheus."

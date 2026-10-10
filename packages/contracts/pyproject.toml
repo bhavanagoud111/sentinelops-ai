@@ -1,0 +1,13 @@
+[project]
+name = "sentinel-contracts"
+version = "0.1.0"
+description = "Versioned event and domain contracts shared by SentinelOps services"
+requires-python = ">=3.12,<3.13"
+dependencies = ["pydantic>=2.10"]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentinel_contracts"]

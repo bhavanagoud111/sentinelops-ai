@@ -1,0 +1,41 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+  external_labels:
+    environment: local
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  # Application metrics from demo services, exported by the collector.
+  - job_name: otel-collector-apps
+    honor_labels: true
+    static_configs:
+      - targets: ["otel-collector:8889"]
+
+  # Collector self-telemetry (pipeline health, dropped data).
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8888"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]
+
+  - job_name: loki
+    static_configs:
+      - targets: ["loki:3100"]
+
+  - job_name: tempo
+    static_configs:
+      - targets: ["tempo:3200"]

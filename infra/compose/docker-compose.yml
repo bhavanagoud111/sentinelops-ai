@@ -1,0 +1,162 @@
+# SentinelOps local stack — Phase 1 (telemetry).
+# All host ports bind to 127.0.0.1 only. Run via `make up` from the repo root.
+name: sentinelops
+
+x-python-service: &python-service
+  build:
+    context: ../..
+    dockerfile: infra/docker/python-service.Dockerfile
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  networks: [sentinelops]
+
+x-otel-env: &otel-env
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_METRIC_EXPORT_INTERVAL: "5000"
+  # Emit stable HTTP semantic conventions (http.server.request.duration, seconds).
+  OTEL_SEMCONV_STABILITY_OPT_IN: http
+  DEPLOYMENT_ENVIRONMENT: local
+  LOG_LEVEL: INFO
+  FAULT_ADMIN_TOKEN: ${FAULT_ADMIN_TOKEN:-local-dev-fault-token}
+
+services:
+  # ------------------------------------------------------------- demo workload
+  inventory:
+    <<: *python-service
+    image: sentinelops/demo-inventory:dev
+    build:
+      context: ../..
+      dockerfile: infra/docker/python-service.Dockerfile
+      args: { PACKAGE: demo-inventory }
+    command: ["uvicorn", "--factory", "demo_inventory.app:build", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      <<: *otel-env
+      OTEL_SERVICE_NAME: inventory
+    ports: ["127.0.0.1:${INVENTORY_PORT:-18082}:8000"]
+    healthcheck: &py-health
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=2).status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      otel-collector: { condition: service_started }
+
+  checkout:
+    <<: *python-service
+    image: sentinelops/demo-checkout:dev
+    build:
+      context: ../..
+      dockerfile: infra/docker/python-service.Dockerfile
+      args: { PACKAGE: demo-checkout }
+    command: ["uvicorn", "--factory", "demo_checkout.app:build", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      <<: *otel-env
+      OTEL_SERVICE_NAME: checkout
+      INVENTORY_URL: http://inventory:8000
+      PAYMENT_PROVIDER_URL: http://payments.internal/v1
+    ports: ["127.0.0.1:${CHECKOUT_PORT:-18081}:8000"]
+    healthcheck: *py-health
+    depends_on:
+      inventory: { condition: service_healthy }
+
+  loadgen:
+    <<: *python-service
+    image: sentinelops/demo-loadgen:dev
+    build:
+      context: ../..
+      dockerfile: infra/docker/python-service.Dockerfile
+      args: { PACKAGE: demo-loadgen }
+    command: ["demo-loadgen"]
+    environment:
+      CHECKOUT_URL: http://checkout:8000
+      INVENTORY_URL: http://inventory:8000
+      LOADGEN_RPS: ${LOADGEN_RPS:-8}
+    depends_on:
+      checkout: { condition: service_healthy }
+
+  # ------------------------------------------------------------- observability
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ../observability/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:${OTEL_GRPC_PORT:-14317}:4317"
+      - "127.0.0.1:${OTEL_HTTP_PORT:-14318}:4318"
+    restart: unless-stopped
+    networks: [sentinelops]
+    depends_on: [tempo, loki]
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=3d
+      - --web.enable-lifecycle
+    volumes:
+      - ../observability/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    ports: ["127.0.0.1:${PROMETHEUS_PORT:-19090}:9090"]
+    restart: unless-stopped
+    networks: [sentinelops]
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ../observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports: ["127.0.0.1:${ALERTMANAGER_PORT:-19093}:9093"]
+    restart: unless-stopped
+    networks: [sentinelops]
+
+  loki:
+    image: grafana/loki:3.7.8
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ../observability/loki/config.yaml:/etc/loki/config.yaml:ro
+    ports: ["127.0.0.1:${LOKI_PORT:-13100}:3100"]
+    restart: unless-stopped
+    networks: [sentinelops]
+
+  tempo:
+    image: grafana/tempo:2.10.8
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ../observability/tempo/config.yaml:/etc/tempo/config.yaml:ro
+    ports: ["127.0.0.1:${TEMPO_PORT:-13200}:3200"]
+    restart: unless-stopped
+    networks: [sentinelops]
+
+  grafana:
+    image: grafana/grafana:12.4.12
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/service-overview.json
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["127.0.0.1:${GRAFANA_PORT:-13000}:3000"]
+    restart: unless-stopped
+    networks: [sentinelops]
+    depends_on: [prometheus, loki, tempo]
+
+networks:
+  sentinelops:
+    name: sentinelops
+
+volumes:
+  prometheus-data:

@@ -1,0 +1,76 @@
+{
+  "$defs": {
+    "IncidentStatus": {
+      "enum": [
+        "OPEN",
+        "TRIAGING",
+        "INVESTIGATING",
+        "AWAITING_APPROVAL",
+        "REMEDIATING",
+        "VERIFYING",
+        "RESOLVED",
+        "NEEDS_HUMAN",
+        "REJECTED",
+        "FAILED"
+      ],
+      "title": "IncidentStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Audit record persisted for every status change.",
+  "properties": {
+    "actor": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    },
+    "correlation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Correlation Id",
+      "type": "string"
+    },
+    "from_status": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IncidentStatus"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "incident_id": {
+      "format": "uuid",
+      "title": "Incident Id",
+      "type": "string"
+    },
+    "reason": {
+      "maxLength": 1000,
+      "title": "Reason",
+      "type": "string"
+    },
+    "to_status": {
+      "$ref": "#/$defs/IncidentStatus"
+    }
+  },
+  "required": [
+    "incident_id",
+    "from_status",
+    "to_status",
+    "actor",
+    "reason",
+    "correlation_id",
+    "at"
+  ],
+  "title": "IncidentTransition",
+  "type": "object"
+}

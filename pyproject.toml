@@ -1,0 +1,91 @@
+[project]
+name = "sentinelops-ai"
+version = "0.1.0"
+description = "AI-assisted SRE platform: incident detection, evidence-backed diagnosis, human-approved remediation"
+requires-python = ">=3.12,<3.13"
+readme = "README.md"
+dependencies = [
+    "sentinel-contracts",
+    "sentinel-common",
+    "demo-faultkit",
+    "demo-checkout",
+    "demo-inventory",
+    "demo-loadgen",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "ruff>=0.9",
+    "mypy>=1.15",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "packages/contracts",
+    "packages/common",
+    "demo/microservices/faultkit",
+    "demo/microservices/checkout",
+    "demo/microservices/inventory",
+    "demo/microservices/loadgen",
+]
+
+[tool.uv.sources]
+sentinel-contracts = { workspace = true }
+sentinel-common = { workspace = true }
+demo-faultkit = { workspace = true }
+demo-checkout = { workspace = true }
+demo-inventory = { workspace = true }
+demo-loadgen = { workspace = true }
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".cache"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "ASYNC", "PT"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S311", "S603"]
+"scripts/**" = ["S101"]
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["^\\.cache/", "^\\.venv/"]
+mypy_path = [
+    "packages/contracts/src",
+    "packages/common/src",
+    "demo/microservices/faultkit/src",
+    "demo/microservices/checkout/src",
+    "demo/microservices/inventory/src",
+    "demo/microservices/loadgen/src",
+]
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = ["opentelemetry.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: requires the local Docker Compose stack (`make up`)",
+]
+addopts = "-ra --strict-markers -m 'not integration'"
+filterwarnings = [
+    # Starlette >=1.x prefers httpx2 for TestClient; harmless until we migrate.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]

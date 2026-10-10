@@ -1,0 +1,115 @@
+{
+  "$defs": {
+    "AlertSource": {
+      "enum": [
+        "alertmanager",
+        "kubernetes",
+        "synthetic"
+      ],
+      "title": "AlertSource",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "critical",
+        "high",
+        "warning",
+        "info"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A single normalized alert occurrence.",
+  "properties": {
+    "annotations": {
+      "additionalProperties": {
+        "maxLength": 1024,
+        "type": "string"
+      },
+      "maxProperties": 32,
+      "propertyNames": {
+        "maxLength": 128
+      },
+      "title": "Annotations",
+      "type": "object"
+    },
+    "environment": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Environment",
+      "type": "string"
+    },
+    "event_id": {
+      "description": "Globally unique, deterministic id used for dedup",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "fingerprint": {
+      "description": "Stable identity of the alerting condition",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "labels": {
+      "additionalProperties": {
+        "maxLength": 1024,
+        "type": "string"
+      },
+      "maxProperties": 64,
+      "propertyNames": {
+        "maxLength": 128
+      },
+      "title": "Labels",
+      "type": "object"
+    },
+    "received_at": {
+      "format": "date-time",
+      "title": "Received At",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "service": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Service",
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "#/$defs/Severity"
+    },
+    "source": {
+      "$ref": "#/$defs/AlertSource"
+    },
+    "starts_at": {
+      "format": "date-time",
+      "title": "Starts At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_id",
+    "source",
+    "fingerprint",
+    "service",
+    "environment",
+    "severity",
+    "starts_at",
+    "received_at"
+  ],
+  "title": "AlertEvent",
+  "type": "object"
+}

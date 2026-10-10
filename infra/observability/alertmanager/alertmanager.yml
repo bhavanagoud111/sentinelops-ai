@@ -1,0 +1,18 @@
+# Phase 1: alerts are grouped and visible in the Alertmanager UI/API only.
+# Phase 2 adds the `sentinelops-gateway` webhook receiver
+# (POST /api/v1/ingest/alertmanager) — see docs/architecture.md.
+route:
+  receiver: "null"
+  group_by: [alertname, service]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+
+receivers:
+  - name: "null"
+
+inhibit_rules:
+  # If the telemetry pipeline itself is down, service alerts are unreliable.
+  - source_matchers: [alertname="TelemetryPipelineDown"]
+    target_matchers: [severity=~"critical|high", alertname!="TelemetryPipelineDown"]
+    equal: []

@@ -1,0 +1,76 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.10.4"
+  UV_PYTHON_PREFERENCE: only-managed
+
+jobs:
+  python:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - name: lint
+        run: uv run --frozen ruff check . && uv run --frozen ruff format --check .
+      - name: typecheck
+        run: uv run --frozen mypy packages demo tests scripts
+      - name: unit tests
+        run: uv run --frozen pytest
+      - name: contract schema drift
+        run: uv run --frozen python scripts/export_schemas.py --check
+
+  stack-config:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: compose config
+        run: docker compose -f infra/compose/docker-compose.yml config --quiet
+      - name: prometheus rules
+        run: >
+          docker run --rm -v "$PWD/infra/observability/prometheus:/etc/prometheus:ro"
+          --entrypoint promtool prom/prometheus:v3.15.0
+          check config /etc/prometheus/prometheus.yml
+      - name: alertmanager config
+        run: >
+          docker run --rm -v "$PWD/infra/observability/alertmanager:/cfg:ro"
+          --entrypoint amtool prom/alertmanager:v0.34.1
+          check-config /cfg/alertmanager.yml
+      - name: collector config
+        run: >
+          docker run --rm -v "$PWD/infra/observability/otel-collector:/cfg:ro"
+          otel/opentelemetry-collector-contrib:0.162.0
+          validate --config=/cfg/config.yaml
+
+  # Phase 1 exit gate end-to-end. Takes ~5 minutes.
+  telemetry-e2e:
+    runs-on: ubuntu-24.04
+    needs: [python, stack-config]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv python install 3.12 && uv sync --frozen
+      - run: docker compose -f infra/compose/docker-compose.yml up -d --build --wait
+      - run: uv run --frozen pytest -m integration -o addopts="-ra --strict-markers"
+      - if: failure()
+        run: docker compose -f infra/compose/docker-compose.yml logs --tail=200
+      - if: always()
+        run: docker compose -f infra/compose/docker-compose.yml down -v
