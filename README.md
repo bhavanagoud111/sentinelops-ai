@@ -165,7 +165,8 @@ From the command line: `make scenario S=A`, or end to end with approvals:
 
 ## Deploy to AWS
 
-SentinelOps is packaged for production Kubernetes:
+SentinelOps ships deployment artifacts for Kubernetes on AWS (the Helm chart is
+test-installed on kind; the Terraform is validated but not yet applied):
 
 - **Helm chart** — [`infra/helm/sentinelops`](infra/helm/sentinelops/README.md): least-privilege
   namespaced RBAC, default-deny NetworkPolicies, `restricted` pod security, pre-upgrade
@@ -232,7 +233,8 @@ Unauthorized actions: **0**; every execution passed the policy engine.
 Full summary and raw per-run JSON (timeline, evidence, policy checks, verification):
 [`docs/evaluation/live-20261010T1716Z`](docs/evaluation/live-20261010T1716Z/SUMMARY.md).
 
-**What earlier runs caught.** The first live batches scored 11/15. Each miss was traced to
+**What earlier runs caught.** The previous full batch scored 11/15 (an earlier, partial
+batch is kept too). Each miss was traced to
 a real bug and fixed with a regression test. The original records are kept in
 [`docs/evaluation/history`](docs/evaluation/history):
 
@@ -276,12 +278,12 @@ services/faultinjector    demo-only fault scenarios
 packages/contracts        versioned event/incident contracts + JSON Schemas
 packages/policy           runbook allowlist + policy engine
 packages/storage          Postgres models, migrations, outbox, audit chain
-packages/messaging        Kafka helpers;  packages/common: logging, telemetry, secrets
+packages/messaging        Kafka helpers; packages/common: logging, telemetry, secrets
 packages/telemetry-clients  Prometheus / Loki / Tempo / Kubernetes read clients
 demo/                     demo microservices, fault kit, labelled scenario datasets
 infra/compose             local control plane + observability
 infra/kind                demo cluster, least-privilege RBAC, workloads
-infra/helm/sentinelops    production chart
+infra/helm/sentinelops    Helm chart (secure defaults)
 infra/terraform           AWS (VPC, EKS, RDS, ECR, MSK), validated only
 infra/observability       collector, Prometheus rules, Alertmanager, Loki, Tempo, Grafana
 docs/                     architecture, ADRs, threat model, runbooks, AWS guide, evaluation
@@ -316,8 +318,9 @@ plus a nightly full end-to-end run on kind. Contributor guide:
 - **Look-back window:** investigations compare the last 20 minutes against their own start.
   If a service has been completely down for the whole window, there is no healthy "before"
   and the investigation hands off to a human rather than guess.
-- **AWS:** the Terraform has been validated, not applied by the authors; first apply
-  should be treated as staging.
+- **AWS:** the Terraform has been validated but not yet applied to a real AWS account;
+  treat the first apply as staging.
 
 ## License
-No license file yet — all rights reserved by the author until one is added.
+Copyright © 2026 bhavanagoud111. All rights reserved. The source is published for
+review and evaluation; please get in touch before reusing it.

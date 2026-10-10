@@ -53,7 +53,7 @@ exist in the repository are listed as built. Revisit at every milestone.
 | Model triggers an arbitrary action | No command/manifest path exists: four allowlisted runbooks, each one fixed JSON-patch template; the API never touches the cluster | built |
 | Action without human consent | Approval required; four-eyes (approver ≠ requester) enforced in API and re-checked by the executor; approval expires (15 min default) | built (tested) |
 | Approved action swapped for another | Approval bound by SHA-256 request hash (incident, runbook, params, target revision); executor recomputes; `no_revision_drift` vs. live deployment | built (tested) |
-| Policy bypass at time of use | Executor re-runs the full policy engine against a live snapshot: mode = `sandbox`, allowlist, params, namespace, deployment, approval checks, incident state, target exists, rollback target, scale bounds (1–4), flag allowlist, no concurrent action, 300 s cooldown | built (`test_policy_engine.py`). No blast-radius check — gap |
+| Policy bypass at time of use | Executor re-runs the full policy engine against a live snapshot: mode = `sandbox`, allowlist, params, namespace, deployment, approval checks, incident state, target exists, rollback target, scale bounds (1–`scaleMax`, default 4), flag allowlist, no concurrent action, 300 s cooldown | built (`test_policy_engine.py`). No blast-radius check — gap |
 | Double execution | Idempotency-Key required on execute; unique `executions.approval_id`; partial unique indexes (one live approval per incident, one running execution per target); row locks; approval consumed on use | built |
 | Over-privileged credentials | Namespaced Roles only: reader = get/list/watch; executor = + `patch` deployments. No create/delete/exec/secrets; `kind-up.sh` asserts this with `kubectl auth can-i`. Helm chart mirrors it and mounts a token only on reader/executor pods | built. Local demo uses long-lived SA token Secrets — accepted (local) |
 | Remediation on by default | Default mode `recommend_only`; writes need `REMEDIATION_MODE=sandbox` **and** the approval chain. No autonomous mode exists | built |
@@ -78,7 +78,7 @@ exist in the repository are listed as built. Revisit at every milestone.
 ### Supply chain
 | Threat | Mitigation | Status |
 |---|---|---|
-| Vulnerable dependencies | `uv.lock` + `pip-audit --strict` weekly and on push; pinned image tags | partial: no npm audit, no image scan, no SBOM/signing, Actions pinned by tag not SHA |
+| Vulnerable dependencies | `uv.lock` + `pip-audit --strict` weekly and on push; pinned image tags | partial: image scan (Trivy) and SBOM/provenance in the release pipeline, not yet exercised by a tagged release; no npm audit, no image signing; Actions pinned by tag, not SHA |
 
 ## Accepted risks (local demo only)
 - Grafana anonymous Viewer, admin password defaults to `admin`.
@@ -95,5 +95,5 @@ closes dev login, token automount, and ingress exposure by default.
 2. Periodic audit-chain verification job + metric/alert; anchor chain head externally.
 3. OIDC login; shorter JWT TTL; token revocation.
 4. HMAC-signed ingress with timestamp window.
-5. Container image scanning, npm audit, SBOM and signed images in the release pipeline.
+5. npm audit and signed images; pin GitHub Actions by SHA; cut a first tagged release.
 6. Blast-radius policy check (e.g. max share of replicas affected).

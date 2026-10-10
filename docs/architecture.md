@@ -30,10 +30,10 @@ with RDS/MSK (or in-cluster Kafka) — see ADR-012.
 | Component | Status | Notes |
 |---|---|---|
 | Contracts (`AlertEvent`, `Incident`, state machine) | built | JSON Schemas in `packages/contracts/schemas`, drift-checked in CI |
-| Demo services (checkout, inventory, loadgen) | built | FastAPI, OTel SDK, stable HTTP semconv |
-| Fault injection (scenarios A, B) | built | token-guarded `/admin/faults`, demo services only |
+| Demo services (checkout, inventory, payment, worker, loadgen) | built | FastAPI, OTel SDK, stable HTTP semconv |
+| Fault injection (scenarios A–E) | built | token-guarded `/admin/faults`, demo services only |
 | Collector → Prometheus/Loki/Tempo | built | |
-| Alert rules A, B + pipeline health | built | `infra/observability/prometheus/rules` |
+| Alert rules A–E + pipeline health | built | `infra/observability/prometheus/rules` |
 | Grafana service overview | built | provisioned, read-only |
 | Ingestion gateway (auth, rate limit, validation, dedup) | built | `services/ingestion` |
 | Transactional outbox + relay → Redpanda | built | `packages/storage/outbox.py`, `services/relay` |
@@ -79,7 +79,6 @@ raw metric names only appear in the recording rules.
 
 ## Open questions
 - Multi-service grouping (e.g. checkout 5xx caused by inventory latency) is left to the investigator (ADR-010).
-- `evidence` table needs an explicit immutable `evidence_id` (spec §9 vs §12).
 
 ## Known limitations
 - Latency quantiles use the OTel SDK's default histogram buckets (…, 1 s, 2.5 s, …), so

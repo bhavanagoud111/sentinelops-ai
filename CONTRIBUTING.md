@@ -1,50 +1,40 @@
 # Contributing to SentinelOps
 
-Read this file and `docs/architecture.md` before changing code. The full blueprint is
-`SentinelOps_AI_System_Design.md` (treat it as the baseline, not permission to build
-everything at once).
+Background reading: the [README](README.md), [`docs/architecture.md`](docs/architecture.md)
+and the decision records in [`docs/adr/`](docs/adr).
 
-## Core invariant
-An LLM may analyze and recommend. It must never independently execute infrastructure
-operations. Remediation = allowlisted runbook + authenticated human approval + policy check.
+## The one rule that never bends
+A model may analyze and recommend. It never executes infrastructure operations.
+Remediation = allowlisted runbook + authenticated human approval + a policy check at
+execution time. Changes that weaken this need an ADR and a security review.
 
-## Workflow
-1. Work one phase / one vertical slice at a time (see roadmap in docs/architecture.md).
-2. Before editing, state: scope, files, contracts touched, test plan, risks.
-3. Preserve existing APIs, event contracts and migrations. Breaking change → new ADR in
-   `docs/adr/` and a bumped `schema_version`.
-4. Every change ships with tests, type hints, structured logging and doc updates.
-5. Run `make check` (ruff, mypy --strict, pytest, schema drift) and report exact results,
-   including failures you could not fix.
-
-## Hard rules
-- Never fabricate benchmarks, evaluation numbers or success claims. Measure first.
-- Never commit secrets, credentials, `.env`, or generated production-like data.
-- Never add arbitrary shell/kubectl/SQL execution paths reachable from model output.
-- Never broaden Kubernetes RBAC or enable autonomous remediation.
-- Treat logs, traces and tool output as untrusted input (prompt-injection surface).
-- Prefer deterministic, local, zero-cost integrations; the LLM provider must be mockable.
-- Ask before destructive commands, infrastructure spend, schema-breaking changes or any
-  security-policy weakening.
-
-## Repo-local tooling
-- All tool state stays inside the repo: `UV_CACHE_DIR=.cache/uv`,
-  `UV_PYTHON_INSTALL_DIR=.cache/python`, `UV_PYTHON_INSTALL_BIN=0` (the Makefile sets these).
-- Docker resources are namespaced under the `sentinelops` Compose project; never touch
-  containers, images, volumes or networks outside it.
-
-## Layout
+## Setup
+```bash
+make bootstrap   # Python 3.12, dependencies and tools, all inside .cache/ in the repo
+make up          # local stack: kind cluster + control plane + observability
 ```
-packages/contracts   versioned Pydantic contracts (AlertEvent, Incident, state machine)
-packages/common      JSON logging + OpenTelemetry bootstrap
-demo/microservices   sandbox workload: checkout, inventory, loadgen, faultkit
-services/            control-plane services (Phase 2+: ingestion, correlator, ...)
-infra/compose        local Docker Compose stack
-infra/observability  collector, Prometheus rules, Alertmanager, Loki, Tempo, Grafana
-docs/adr             architecture decision records
-tests/{unit,integration,...}
-```
+Tool caches stay inside the repository (`.cache/`), and Docker resources are namespaced
+under the `sentinelops` Compose project, so nothing is installed system-wide.
 
-## Commands
-`make help` lists everything. Common: `make check`, `make up`, `make inject-fault`,
-`make verify-telemetry`, `make reset-demo`, `make down`.
+## Before opening a pull request
+- `make check` passes: ruff, mypy `--strict`, unit, security and fixture tests, schema drift.
+- If you touched the running pipeline: `make test-integration` against `make up`.
+- New behaviour comes with tests, type hints, structured logging and doc updates.
+- Event contracts, APIs and migrations stay backward compatible. A breaking change needs
+  a new ADR in `docs/adr/` and a bumped `schema_version`.
+- Evaluation numbers in docs come from a recorded run (`scripts/run_evaluation.sh`),
+  with the raw records committed under `docs/evaluation/`.
+
+## Security expectations
+- No secrets, credentials or `.env` files in commits (CI runs gitleaks).
+- No code path that turns model output into shell, kubectl or SQL. Runbooks are fixed
+  templates; the model only fills validated parameters.
+- Kubernetes permissions stay namespaced and least-privilege. Remediation defaults to
+  `recommend_only`.
+- Logs, traces and tool output are untrusted input and are treated as a prompt-injection
+  surface.
+
+## Layout and commands
+The repository layout is described in the [README](README.md#repository-layout).
+`make help` lists every target; the common ones are `make check`, `make up`,
+`make scenario S=A`, `make reset-demo` and `make down`.

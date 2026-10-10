@@ -4,9 +4,9 @@ This guide takes you from an empty AWS account to SentinelOps watching **your** 
 on EKS. Read it end to end once before running anything: step 1 creates billable resources
 (≈ $188/month at the defaults — an estimate, see [`infra/terraform/README.md`](../infra/terraform/README.md)).
 
-> The authors have validated every artifact here (`terraform validate`, `helm lint`,
-> schema validation, a live Helm install into kind) but have **not** applied this
-> Terraform to a real AWS account. Treat the first run as a staging exercise.
+> Every artifact here has been validated (`terraform validate`, `helm lint`, schema
+> validation, a live Helm install into kind), but this Terraform has **not** yet been
+> applied to a real AWS account. Treat the first run as a staging exercise.
 
 ```
              your EKS cluster

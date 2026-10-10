@@ -4,8 +4,8 @@
     uv run python scripts/evaluate.py --providers rules,claude --runs 3
 
 Claude runs cost money and need credentials (ANTHROPIC_API_KEY or `ant auth login`);
-they are never run by default. Results go to docs/evaluation/results-<date>.json and
-a markdown table on stdout. Numbers are only ever produced by running this script.
+they are never run by default. Results go to docs/evaluation/fixtures-<timestamp>.json
+and a markdown table on stdout. Numbers are only ever produced by running this script.
 """
 
 from __future__ import annotations

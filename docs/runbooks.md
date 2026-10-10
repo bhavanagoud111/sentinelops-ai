@@ -1,7 +1,8 @@
 # Runbooks
 
-Human-readable runbooks linked from alert annotations. In Phase 4 the actionable subset
-becomes allowlisted, machine-checked runbooks; until then these are recommend-only.
+Human-readable runbooks linked from alert annotations. Actionable steps map to the four
+allowlisted runbooks (restart, rollback, scale, disable a feature flag), which run only
+after approval and a policy check.
 
 ## Checkout high 5xx rate
 **Alert:** `CheckoutHigh5xxRate` (critical) — checkout 5xx ratio > 5% for 1 min.
@@ -14,19 +15,21 @@ becomes allowlisted, machine-checked runbooks; until then these are recommend-on
 3. Tempo: `{resource.service.name="checkout" && status=error}` — failing span
    `checkout.load_payment_config`; inventory is *not* called on these requests.
 4. Correlate with recent config/deploy changes.
-5. **Remediation (demo):** roll back the bad configuration (`make clear-fault`).
-   Phase 4: allowlisted *rollback deployment* runbook with approval.
+5. **Remediation:** allowlisted *rollback deployment* runbook (approval required).
+   Demo reset: `make reset-demo`.
 6. Verify: error ratio < 1% for 5 min; alert resolves.
 
 ## Inventory high latency
 **Alert:** `InventoryHighLatencyP95` (high) — inventory p95 > 500 ms for 2 min.
-**Demo scenario:** B (`make inject-latency`).
+**Demo scenario:** B (`make inject-latency`: inventory rolled out with `FEATURE_NEW_STOCK_INDEX=on`).
 
 1. Service Overview: inventory p95 up; checkout p95 follows; error ratio may stay flat.
-2. Tempo: slow traces show long `inventory.store.query` span with `demo.fault.delay_ms`.
-3. Loki: `inventory store slow response` warnings.
-4. **Remediation (demo):** remove dependency delay (`make clear-fault`). Real-world
-   analogue: fail over / scale the backing store; restarting inventory will not help.
+2. Kubernetes: did a recent rollout switch a `FEATURE_*` flag on? (SentinelOps shows the
+   rollout diff as evidence.)
+3. Tempo: slow traces show a long `inventory.store.query` span.
+4. **Remediation:** if a flag was enabled, the allowlisted *disable feature flag* runbook
+   (approval required). If the backing store itself is slow, fail over or scale it;
+   restarting inventory will not help. Demo reset: `make reset-demo`.
 5. Verify p95 < 200 ms for 5 min.
 
 ## Telemetry pipeline down
