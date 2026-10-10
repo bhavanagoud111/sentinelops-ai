@@ -16,6 +16,4 @@ Proposed, Accepted, Superseded by ADR-NNN.
 | [009](ADR-009-sse-before-websockets.md) | Server-Sent Events before WebSockets | Accepted |
 | [010](ADR-010-correlation-policy.md) | Incident correlation key and reopen policy | Accepted |
 | [011](ADR-011-authn-authz.md) | Authentication and authorization | Accepted |
-
-
-
+| [012](ADR-012-helm-and-aws-topology.md) | Helm chart for the control plane; AWS as optional, validated-only Terraform | Accepted |

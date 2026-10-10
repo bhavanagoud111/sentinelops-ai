@@ -4,26 +4,28 @@ Canonical blueprint: [`SentinelOps_AI_System_Design.md`](../SentinelOps_AI_Syste
 This page tracks what is **built** versus **planned** and records implementation details
 the blueprint leaves open.
 
-## Current state (Phase 0 + Phase 1)
+## Current state (Phases 0–7)
 
 ```
-            ┌──────────┐  HTTP   ┌──────────┐  HTTP   ┌───────────┐
-            │ loadgen  │───────▶│ checkout │───────▶│ inventory │
-            └──────────┘         └────┬─────┘         └─────┬─────┘
-                                      │ OTLP/HTTP (traces, metrics, logs)
-                                      ▼                     ▼
-                               ┌─────────────────────────────────┐
-                               │       OpenTelemetry Collector    │
-                               └──────┬──────────┬──────────┬────┘
-                                traces│   metrics│      logs│
-                                      ▼          ▼          ▼
-                                   Tempo    Prometheus     Loki
-                                               │ rules
-                                               ▼
-                                         Alertmanager ──▶ (Phase 2: ingestion gateway)
-                                               
-                        Grafana ◀── Prometheus + Loki + Tempo (linked by trace_id)
+ kind cluster (sentinelops-demo)                 Compose project `sentinelops`
+ ┌──────────────────────────────┐   OTLP   ┌──────────────────────────────────────────┐
+ │ loadgen → checkout → inventory├────────▶│ OTel Collector → Prometheus · Loki · Tempo│
+ │            └─▶ payment, worker│          │                     │ rules              │
+ └──────────────▲───────────────┘          │                Alertmanager              │
+                │ PATCH (allowlisted        │                     │ bearer webhook     │
+                │ runbooks, executor SA)    │                     ▼                    │
+                │ get/list (reader SA)      │  ingestion ─▶ Postgres (outbox, audit)   │
+                │                           │                 │ relay                  │
+                │                           │                 ▼                        │
+                │                           │  Redpanda: alerts → correlator → incidents│
+                │                           │     → investigator (rules | Claude)       │
+                │                           │     → API ◀── dashboard (React, SSE)      │
+                │                           │        approval (four-eyes) + policy      │
+                └───────────────────────────┼──── executor ──▶ verifier ──▶ resolved   │
+                                            └──────────────────────────────────────────┘
 ```
+Production topology (Helm/EKS) is the same control plane as pods in `sentinelops-system`
+with RDS/MSK (or in-cluster Kafka) — see ADR-012.
 
 | Component | Status | Notes |
 |---|---|---|
@@ -46,6 +48,12 @@ the blueprint leaves open.
 | Executor (dry-run + fixed JSON patches) and verifier | built | `services/executor`, `services/verifier` |
 | Fault injector (chaos SA) | built | `services/faultinjector` |
 | React dashboard + SSE (ADR-009) | built | `apps/dashboard`, served by nginx on :13001 |
+| Security test suite | built | `tests/security`: ingestion abuse, authz matrix + forged tokens, adversarial model |
+| Platform self-observability | built | consumer lag, platform alert rules, "SentinelOps Platform" Grafana dashboard |
+| Evaluation + load tooling | built | `scripts/run_evaluation.sh`, `scripts/summarize_evaluation.py`, `scripts/loadtest.py`; results in `docs/evaluation/` |
+| Helm chart (ADR-012) | built | `infra/helm/sentinelops`; `make helm-check`, `make helm-test-install` |
+| AWS Terraform (ADR-012) | written, validated, never applied | `infra/terraform`; `make terraform-check`; cost + teardown in its README |
+| Release pipeline | written, not yet run | `.github/workflows/release.yml` (tag → images + SBOM/provenance → scan → chart) |
 
 ## Signals
 
@@ -67,7 +75,7 @@ raw metric names only appear in the recording rules.
 - Loki and Tempo store data in the container layer: restart = clean slate for demos.
   Prometheus keeps a named volume (`make destroy` removes it).
 - Tempo is pinned to 2.10.x; Tempo 3.x changed its ingest architecture (ADR-003).
-- Alertmanager routes to a `null` receiver in Phase 1. Phase 2 adds the gateway webhook.
+- Alertmanager posts to the ingestion gateway with a bearer token read from a Compose secret.
 
 ## Open questions
 - Multi-service grouping (e.g. checkout 5xx caused by inventory latency) is left to the investigator (ADR-010).

@@ -1,0 +1,105 @@
+{{- if .Values.dashboard.enabled }}
+{{- $fullname := include "sentinelops.fullname" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-dashboard-nginx
+  labels: {{- include "sentinelops.labels" . | nindent 4 }}
+data:
+  # Same policy as infra/docker/dashboard-nginx.conf; the API is a stable ClusterIP
+  # Service, so no runtime DNS re-resolution is needed.
+  default.conf: |
+    server {
+      listen 8080;
+      server_tokens off;
+      root /usr/share/nginx/html;
+
+      add_header X-Content-Type-Options nosniff always;
+      add_header X-Frame-Options DENY always;
+      add_header Referrer-Policy no-referrer always;
+      add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'" always;
+
+      location = /healthz { access_log off; return 200 "ok\n"; }
+      location /api/v1/events/stream {
+        proxy_pass http://{{ $fullname }}-api:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+      }
+      location /api/ {
+        proxy_pass http://{{ $fullname }}-api:8000;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        client_max_body_size 1m;
+      }
+      location /assets/ {
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+      }
+      location / {
+        try_files $uri /index.html;
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-dashboard
+  labels:
+    {{- include "sentinelops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard
+spec:
+  replicas: {{ .Values.dashboard.replicas }}
+  selector:
+    matchLabels: {{- include "sentinelops.selector" (dict "root" . "name" "dashboard") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "sentinelops.labels" . | nindent 8 }}
+        app.kubernetes.io/component: dashboard
+      annotations:
+        checksum/nginx: {{ .Values.dashboard | toJson | sha256sum | trunc 16 }}
+    spec:
+      serviceAccountName: {{ $fullname }}
+      automountServiceAccountToken: false
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: dashboard
+          image: {{ .Values.image.dashboard.repository }}:{{ .Values.image.dashboard.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          resources: {{- toYaml .Values.dashboard.resources | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: nginx, mountPath: /etc/nginx/conf.d, readOnly: true }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 32Mi }
+        - name: nginx
+          configMap: { name: {{ $fullname }}-dashboard-nginx }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-dashboard
+  labels:
+    {{- include "sentinelops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard
+spec:
+  type: ClusterIP
+  selector: {{- include "sentinelops.selector" (dict "root" . "name" "dashboard") | nindent 4 }}
+  ports:
+    - { name: http, port: 80, targetPort: http }
+{{- end }}

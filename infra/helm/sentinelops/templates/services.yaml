@@ -1,0 +1,18 @@
+{{- $fullname := include "sentinelops.fullname" . }}
+{{- range $name, $c := .Values.components }}
+{{- if and $c.enabled $c.http }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-{{ $name }}
+  labels:
+    {{- include "sentinelops.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  type: ClusterIP
+  selector: {{- include "sentinelops.selector" (dict "root" $ "name" $name) | nindent 4 }}
+  ports:
+    - { name: http, port: 8000, targetPort: http }
+{{- end }}
+{{- end }}

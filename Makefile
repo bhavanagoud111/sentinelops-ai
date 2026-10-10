@@ -24,6 +24,8 @@ KUBECTL := "$(BIN)/kubectl" --kubeconfig "$(CURDIR)/.cache/kube/admin.kubeconfig
 KIND_VERSION := v0.33.0
 KUBECTL_VERSION := v1.37.1
 HELM_VERSION := v4.3.0
+KUBECONFORM_VERSION := v0.8.0
+TERRAFORM_VERSION := 1.16.5
 OS := $(shell uname -s | tr A-Z a-z)
 ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 
@@ -67,14 +69,46 @@ check: lint typecheck test ## Everything CI runs (minus Docker)
 
 # ------------------------------------------------------------------ tools (repo-local)
 .PHONY: tools
-tools: ## Download pinned kind/kubectl/helm into .cache/bin (no global install)
+tools: ## Download pinned kind/kubectl/helm/kubeconform into .cache/bin (no global install)
 	@mkdir -p "$(BIN)"
 	@[ -x "$(BIN)/kind" ] || curl -sSfLo "$(BIN)/kind" https://kind.sigs.k8s.io/dl/$(KIND_VERSION)/kind-$(OS)-$(ARCH)
 	@[ -x "$(BIN)/kubectl" ] || { curl -sSfLo "$(BIN)/kubectl" https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/$(OS)/$(ARCH)/kubectl && \
 	  echo "$$(curl -sSfL https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/$(OS)/$(ARCH)/kubectl.sha256)  $(BIN)/kubectl" | shasum -a 256 -c >/dev/null; }
 	@[ -x "$(BIN)/helm" ] || { curl -sSfL https://get.helm.sh/helm-$(HELM_VERSION)-$(OS)-$(ARCH).tar.gz | tar -xz -C "$(BIN)" --strip-components=1 $(OS)-$(ARCH)/helm; }
-	@chmod +x "$(BIN)"/kind "$(BIN)"/kubectl "$(BIN)"/helm
+	@[ -x "$(BIN)/kubeconform" ] || { curl -sSfL https://github.com/yannh/kubeconform/releases/download/$(KUBECONFORM_VERSION)/kubeconform-$(OS)-$(ARCH).tar.gz | tar -xz -C "$(BIN)" kubeconform; }
+	@chmod +x "$(BIN)"/kind "$(BIN)"/kubectl "$(BIN)"/helm "$(BIN)"/kubeconform
 	@"$(BIN)/kind" version && "$(BIN)/kubectl" version --client | head -1 && "$(BIN)/helm" version --short
+
+.PHONY: helm-check
+helm-check: tools ## Lint + render the Helm chart (default and all-features values)
+	@"$(BIN)/helm" lint --strict infra/helm/sentinelops
+	@"$(BIN)/helm" template ci infra/helm/sentinelops >/dev/null
+	@for v in "" "-f infra/helm/sentinelops/ci/all-features-values.yaml"; do \
+	  "$(BIN)/helm" template ci infra/helm/sentinelops $$v | "$(BIN)/kubeconform" -strict -summary - || exit 1; \
+	done
+
+.PHONY: helm-test-install helm-test-uninstall
+helm-test-install: tools ## Install the chart into kind (stops the Compose pipeline while it runs)
+	@scripts/helm-test.sh install
+
+helm-test-uninstall: ## Remove the kind Helm release and restart the Compose pipeline
+	@scripts/helm-test.sh uninstall
+
+.PHONY: terraform-check
+TF := TF_DATA_DIR="$(CURDIR)/.cache/terraform/demo" TF_PLUGIN_CACHE_DIR="$(CURDIR)/.cache/terraform/plugins" \
+	"$(BIN)/terraform" -chdir=infra/terraform/envs/demo
+terraform-check: ## fmt + validate the AWS Terraform (no credentials, no backend, creates nothing)
+	@mkdir -p "$(BIN)" .cache/terraform/plugins
+	@[ -x "$(BIN)/terraform" ] || { curl -sSfLo .cache/terraform/tf.zip \
+	  https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_$(OS)_$(ARCH).zip && \
+	  unzip -oq .cache/terraform/tf.zip terraform -d "$(BIN)" && rm .cache/terraform/tf.zip; }
+	@"$(BIN)/terraform" fmt -check -recursive infra/terraform
+	@$(TF) init -backend=false -input=false >/dev/null
+	@$(TF) validate
+
+.PHONY: manifests-check
+manifests-check: tools ## Offline schema validation of the kind manifests
+	@"$(BIN)/kubeconform" -strict -summary infra/kind/rbac.yaml infra/kind/kube-state-metrics.yaml infra/kind/workloads.yaml
 
 # ------------------------------------------------------------------ stack
 .PHONY: up down destroy ps logs build config secrets migrate network kind-up kind-down compose-up kubectl

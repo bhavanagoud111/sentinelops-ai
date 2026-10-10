@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (git-ignored) and adjust.
+region                  = "us-east-1"
+eks_public_access_cidrs = ["203.0.113.10/32"] # your IP
+node_capacity_type      = "SPOT"
+kafka_mode              = "in_cluster"
+monthly_budget_usd      = 250
+budget_alert_email      = "you@example.com"

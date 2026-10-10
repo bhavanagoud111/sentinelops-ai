@@ -1,0 +1,86 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $fullname := include "sentinelops.fullname" . }}
+{{- $np := .Values.networkPolicy }}
+# Default deny: no pod of this release accepts traffic unless a rule below allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}-default-deny
+  labels: {{- include "sentinelops.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: sentinelops
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Ingress{{ if $np.egress.enabled }}, Egress{{ end }}]
+{{- if .Values.dashboard.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}-dashboard
+  labels: {{- include "sentinelops.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "sentinelops.selector" (dict "root" . "name" "dashboard") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - ports: [{ port: 8080 }]
+      from: {{- if $np.frontendFrom }}{{ toYaml $np.frontendFrom | nindent 8 }}{{ else }} [{ namespaceSelector: {} }]{{ end }}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}-api
+  labels: {{- include "sentinelops.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "sentinelops.selector" (dict "root" . "name" "api") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - ports: [{ port: 8000 }]
+      from:
+        - podSelector:
+            matchLabels: {{- include "sentinelops.selector" (dict "root" . "name" "dashboard") | nindent 14 }}
+        {{- with $np.frontendFrom }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}-ingestion
+  labels: {{- include "sentinelops.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "sentinelops.selector" (dict "root" . "name" "ingestion") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - ports: [{ port: 8000 }]
+      from: {{- if $np.ingestionFrom }}{{ toYaml $np.ingestionFrom | nindent 8 }}{{ else }} [{ namespaceSelector: {} }]{{ end }}
+{{- if $np.egress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}-egress
+  labels: {{- include "sentinelops.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: sentinelops
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Egress]
+  egress:
+    - ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: sentinelops
+              app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- with $np.egress.to }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end }}

@@ -12,9 +12,10 @@ from sentinel_investigator.tools import KubernetesReader
 
 
 def kubernetes_reader_from_env() -> KubernetesReader | None:
+    from sentinel_telemetry.kubernetes import IN_CLUSTER, KubernetesReadClient
+
     path = os.environ.get("K8S_READER_KUBECONFIG")
-    if not path or not os.path.exists(path):
+    if not path or (path != IN_CLUSTER and not os.path.exists(path)):
         return None
-    from sentinel_telemetry.kubernetes import KubernetesReadClient
 
     return KubernetesReadClient.from_kubeconfig(path)

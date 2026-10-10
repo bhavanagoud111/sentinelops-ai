@@ -1,0 +1,109 @@
+{{- $fullname := include "sentinelops.fullname" . }}
+{{- $v := .Values }}
+{{- range $name, $c := .Values.components }}
+{{- if $c.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-{{ $name }}
+  labels:
+    {{- include "sentinelops.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  {{- if not (and $c.http $v.autoscaling.enabled) }}
+  replicas: {{ $c.replicas }}
+  {{- end }}
+  selector:
+    matchLabels: {{- include "sentinelops.selector" (dict "root" $ "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "sentinelops.labels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $name }}
+    spec:
+      serviceAccountName: {{ include "sentinelops.serviceAccount" (dict "root" $ "kube" $c.kube) }}
+      automountServiceAccountToken: {{ ne $c.kube "" }}
+      securityContext: {{- toYaml $v.podSecurityContext | nindent 8 }}
+      {{- with $v.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "sentinelops.platformImage" $ }}
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          command: {{- toYaml $c.command | nindent 12 }}
+          securityContext: {{- toYaml $v.containerSecurityContext | nindent 12 }}
+          env:
+            {{- include "sentinelops.commonEnv" $ | nindent 12 }}
+            - name: OTEL_SERVICE_NAME
+              value: sentinel-{{ $name }}
+            {{- range $key := $c.secrets }}
+            - name: {{ include "sentinelops.secretEnvName" $key }}
+              value: /run/secrets/sentinelops/{{ $key }}
+            {{- end }}
+            {{- if eq $c.kube "reader" }}
+            - { name: K8S_READER_KUBECONFIG, value: in-cluster }
+            {{- else if eq $c.kube "executor" }}
+            - { name: K8S_EXECUTOR_KUBECONFIG, value: in-cluster }
+            {{- end }}
+            {{- if has $name (list "investigator" "verifier" "api") }}
+            - { name: PROMETHEUS_URL, value: {{ $v.config.prometheusUrl | quote }} }
+            - { name: LOKI_URL, value: {{ $v.config.lokiUrl | quote }} }
+            - { name: TEMPO_URL, value: {{ $v.config.tempoUrl | quote }} }
+            {{- end }}
+            {{- if has $name (list "api" "executor") }}
+            - { name: REMEDIATION_MODE, value: {{ $v.config.remediationMode | quote }} }
+            {{- end }}
+            {{- if has $name (list "api" "investigator") }}
+            - { name: SENTINEL_LLM_PROVIDER, value: {{ $v.config.llmProvider | quote }} }
+            {{- end }}
+            {{- if eq $name "api" }}
+            - { name: ALERTMANAGER_URL, value: {{ $v.config.alertmanagerUrl | quote }} }
+            - { name: GRAFANA_PUBLIC_URL, value: {{ $v.config.grafanaPublicUrl | quote }} }
+            - { name: AUTH_DEV_LOGIN, value: {{ $v.config.authDevLogin | toString | quote }} }
+            - { name: CORS_ORIGINS, value: {{ $v.config.corsOrigins | quote }} }
+            - { name: APPROVAL_TTL_MINUTES, value: {{ $v.config.approvalTtlMinutes | toString | quote }} }
+            {{- else if eq $name "correlator" }}
+            - { name: REOPEN_WINDOW_MINUTES, value: {{ $v.config.reopenWindowMinutes | toString | quote }} }
+            {{- else if eq $name "investigator" }}
+            - { name: SENTINEL_LLM_MODEL, value: {{ $v.config.llmModel | quote }} }
+            - { name: AUTO_INVESTIGATE, value: "true" }
+            - { name: INVESTIGATION_DEADLINE_S, value: {{ $v.config.investigationDeadlineSeconds | toString | quote }} }
+            {{- if eq $v.config.llmProvider "claude" }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom: { secretKeyRef: { name: {{ $v.existingSecret }}, key: anthropic-api-key } }
+            {{- end }}
+            {{- end }}
+          {{- if $c.http }}
+          ports:
+            - { name: http, containerPort: 8000 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          {{- end }}
+          resources: {{- toYaml (mergeOverwrite (deepCopy $v.defaultResources) ($c.resources | default dict)) | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            {{- if $c.secrets }}
+            - { name: secrets, mountPath: /run/secrets/sentinelops, readOnly: true }
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+        {{- if $c.secrets }}
+        - name: secrets
+          secret:
+            secretName: {{ $v.existingSecret }}
+            defaultMode: 0440
+            items:
+              {{- range $key := $c.secrets }}
+              - { key: {{ $key }}, path: {{ $key }} }
+              {{- end }}
+        {{- end }}
+{{- end }}
+{{- end }}

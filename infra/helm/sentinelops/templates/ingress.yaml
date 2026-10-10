@@ -1,0 +1,29 @@
+{{- if and .Values.ingress.enabled .Values.dashboard.enabled }}
+# Only the dashboard is exposed; it proxies /api to the API Service. Ingestion stays
+# cluster-internal (Alertmanager runs in-cluster).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "sentinelops.fullname" . }}
+  labels: {{- include "sentinelops.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingress.tlsSecretName }}
+  tls:
+    - hosts: [{{ .Values.ingress.host | quote }}]
+      secretName: {{ .Values.ingress.tlsSecretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: {{ include "sentinelops.fullname" . }}-dashboard, port: { name: http } }
+{{- end }}

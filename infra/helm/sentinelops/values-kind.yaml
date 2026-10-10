@@ -1,0 +1,23 @@
+# Local test install into the kind cluster, reusing the Compose data plane
+# (the kind node joins the `sentinelops` Docker network, so pods resolve these names).
+# See README.md "Local test install" — stop the Compose pipeline first so the two
+# control planes don't share Kafka consumer groups.
+image:
+  platform: { repository: sentinelops/platform, tag: dev }
+  dashboard: { repository: sentinelops/dashboard, tag: dev }
+  pullPolicy: Never
+config:
+  environment: local
+  kafkaBootstrap: redpanda:9092
+  otlpEndpoint: http://otel-collector:4318
+  prometheusUrl: http://prometheus:9090
+  lokiUrl: http://loki:3100
+  tempoUrl: http://tempo:3200
+  alertmanagerUrl: http://alertmanager:9093
+  grafanaPublicUrl: http://127.0.0.1:13000
+  authDevLogin: true
+targetNamespaces: [sentinelops-demo]
+components:
+  api: { replicas: 1 }
+  ingestion: { replicas: 1 }
+dashboard: { replicas: 1 }

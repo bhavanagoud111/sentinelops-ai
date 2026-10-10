@@ -1,0 +1,14 @@
+SentinelOps {{ .Chart.AppVersion }} installed in namespace {{ .Release.Namespace }}.
+
+  Remediation mode : {{ .Values.config.remediationMode }}
+  Investigator     : {{ .Values.config.llmProvider }}
+  Acts on          : {{ join ", " .Values.targetNamespaces }} (namespaced Roles only)
+{{- if .Values.config.authDevLogin }}
+
+  WARNING: authDevLogin=true lets anyone pick a username and role. Sandbox only.
+{{- end }}
+
+Dashboard (no ingress):
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "sentinelops.fullname" . }}-dashboard 8080:80
+Alertmanager webhook URL:
+  http://{{ include "sentinelops.fullname" . }}-ingestion.{{ .Release.Namespace }}.svc:8000/api/v1/ingest/alertmanager

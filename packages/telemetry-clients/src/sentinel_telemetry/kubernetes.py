@@ -15,6 +15,18 @@ from kubernetes import client, config
 
 REVISION = "deployment.kubernetes.io/revision"
 
+# Kubeconfig "path" meaning: use the pod's own ServiceAccount (Helm deployments).
+IN_CLUSTER = "in-cluster"
+
+
+def api_client(source: str) -> Any:
+    """API client from a kubeconfig file, or from the pod ServiceAccount for ``in-cluster``."""
+    if source == IN_CLUSTER:
+        cfg = client.Configuration()
+        config.load_incluster_config(client_configuration=cfg)  # type: ignore[no-untyped-call]
+        return client.ApiClient(cfg)
+    return config.new_client_from_config(config_file=source)  # type: ignore[no-untyped-call]
+
 
 def _env(template: Any) -> dict[str, str]:
     out: dict[str, str] = {}
@@ -53,7 +65,7 @@ class KubernetesReadClient:
 
     @classmethod
     def from_kubeconfig(cls, path: str) -> KubernetesReadClient:
-        return cls(config.new_client_from_config(config_file=path))  # type: ignore[no-untyped-call]
+        return cls(api_client(path))
 
     def _replicasets(self, namespace: str, deployment: str) -> tuple[Any, list[Any]]:
         dep = self.apps.read_namespaced_deployment(deployment, namespace)

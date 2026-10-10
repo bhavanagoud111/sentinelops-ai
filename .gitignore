@@ -29,3 +29,11 @@ node_modules/
 apps/dashboard/dist/
 apps/dashboard/test-results/
 apps/dashboard/playwright-report/
+
+# Terraform (Phase 7) — commit .terraform.lock.hcl, never state or real tfvars
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+crash.log

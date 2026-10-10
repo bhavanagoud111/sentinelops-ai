@@ -186,6 +186,8 @@ services:
     depends_on:
       migrate: { condition: service_completed_successfully }
       redpanda: { condition: service_healthy }
+      # One-shot jobs need a dependent, or `compose up --wait` reports their exit as failure.
+      redpanda-init: { condition: service_completed_successfully }
 
   correlator:
     <<: *platform-service

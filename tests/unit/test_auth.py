@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Annotated
 
 import jwt
 import pytest
+from fastapi import Depends, FastAPI
+from fastapi.testclient import TestClient
 from sentinel_api.auth import (
     AUDIENCE,
     ISSUER,
@@ -12,6 +15,7 @@ from sentinel_api.auth import (
     Principal,
     Role,
     TokenService,
+    current_principal,
 )
 
 SECRET = "x" * 40
@@ -87,3 +91,26 @@ def test_multi_role_union() -> None:
     p = Principal("s", "S", frozenset({Role.OPERATOR, Role.APPROVER}))
     assert p.can(Permission.EXECUTE)
     assert p.can(Permission.DECIDE_APPROVAL)
+
+
+_qt_app = FastAPI()
+_qt_app.state.tokens = TokenService(SECRET)
+
+
+@_qt_app.get("/api/v1/events/stream")
+def _stream(p: Annotated[Principal, Depends(current_principal)]) -> dict[str, str]:
+    return {"sub": p.subject}
+
+
+@_qt_app.get("/api/v1/incidents")
+def _incidents(p: Annotated[Principal, Depends(current_principal)]) -> dict[str, str]:
+    return {"sub": p.subject}
+
+
+def test_query_token_only_accepted_on_event_stream() -> None:
+    token = TokenService(SECRET).issue("anna", "Anna", [Role.VIEWER])
+    c = TestClient(_qt_app)
+    assert c.get("/api/v1/events/stream", params={"access_token": token}).status_code == 200
+    assert c.get("/api/v1/incidents", params={"access_token": token}).status_code == 401
+    headers = {"Authorization": f"Bearer {token}"}
+    assert c.get("/api/v1/incidents", headers=headers).status_code == 200

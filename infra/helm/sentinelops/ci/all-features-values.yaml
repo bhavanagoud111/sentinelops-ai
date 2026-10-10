@@ -1,0 +1,11 @@
+# Renders every optional template (used by `make helm-check`).
+autoscaling: { enabled: true }
+ingress: { enabled: true, className: nginx, tlsSecretName: sentinelops-tls }
+networkPolicy:
+  frontendFrom: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } } }]
+  ingestionFrom: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: monitoring } } }]
+  egress:
+    enabled: true
+    to: [{ to: [{ ipBlock: { cidr: 10.0.0.0/16 } }], ports: [{ port: 5432 }, { port: 9092 }] }]
+config: { llmProvider: claude, remediationMode: sandbox }
+targetNamespaces: [sentinelops-demo, payments]

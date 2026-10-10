@@ -54,12 +54,19 @@ def _state(dep: Any) -> dict[str, Any]:
     }
 
 
+IN_CLUSTER = "in-cluster"  # use the pod's own ServiceAccount (Helm deployments)
+
+
 class DeploymentActions:
     def __init__(self, api_client: Any) -> None:
         self.apps: Any = client.AppsV1Api(api_client)
 
     @classmethod
     def from_kubeconfig(cls, path: str) -> DeploymentActions:
+        if path == IN_CLUSTER:
+            cfg = client.Configuration()
+            config.load_incluster_config(client_configuration=cfg)  # type: ignore[no-untyped-call]
+            return cls(client.ApiClient(cfg))
         return cls(config.new_client_from_config(config_file=path))  # type: ignore[no-untyped-call]
 
     # -------------------------------------------------------------- read

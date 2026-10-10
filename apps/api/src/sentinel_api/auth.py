@@ -109,13 +109,22 @@ class TokenService:
 
 _bearer = HTTPBearer(auto_error=False)
 
+# Browsers' EventSource cannot set headers, so the SSE stream alone accepts
+# ?access_token=. Everywhere else tokens in URLs (logs, history, Referer) are refused.
+QUERY_TOKEN_PATHS = frozenset({"/api/v1/events/stream"})
+
+
+def _query_token(request: Request) -> str | None:
+    if request.method == "GET" and request.url.path in QUERY_TOKEN_PATHS:
+        return request.query_params.get("access_token")
+    return None
+
 
 def current_principal(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
 ) -> Principal:
-    token = credentials.credentials if credentials else request.query_params.get("access_token")
-    # access_token query param exists only because browsers' EventSource cannot set headers.
+    token = credentials.credentials if credentials else _query_token(request)
     if not token:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, "missing bearer token", {"WWW-Authenticate": "Bearer"}

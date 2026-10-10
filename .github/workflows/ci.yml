@@ -110,12 +110,12 @@ jobs:
           docker run --rm -v "$PWD/infra/observability/otel-collector:/cfg:ro"
           otel/opentelemetry-collector-contrib:0.162.0
           validate --config=/cfg/config.yaml
-      - name: kubernetes manifests (client-side schema)
-        run: |
-          make tools
-          for f in infra/kind/rbac.yaml infra/kind/kube-state-metrics.yaml infra/kind/workloads.yaml; do
-            .cache/bin/kubectl apply --dry-run=client --validate=false -f "$f" >/dev/null
-          done
+      - name: kubernetes manifests (offline schema)
+        run: make manifests-check
+      - name: helm chart
+        run: make helm-check
+      - name: terraform (fmt + validate, no backend)
+        run: make terraform-check
 
   # Full stack on kind: scenario A end to end + all live integration/security tests.
   # Heavy (~15 min), so nightly and on demand only.
