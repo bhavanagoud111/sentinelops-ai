@@ -1,5 +1,10 @@
 # SentinelOps AI
 
+[![ci](https://github.com/bhavanagoud111/sentinelops-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/bhavanagoud111/sentinelops-ai/actions/workflows/ci.yml)
+[![security](https://github.com/bhavanagoud111/sentinelops-ai/actions/workflows/security.yml/badge.svg)](https://github.com/bhavanagoud111/sentinelops-ai/actions/workflows/security.yml)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB)
+![Kubernetes](https://img.shields.io/badge/kubernetes-Helm%20%7C%20kind%20%7C%20EKS-326CE5)
+
 **An AI on-call assistant that is not allowed to act alone.** SentinelOps turns alerts into
 incidents, investigates them against metrics, logs, traces and Kubernetes state, explains
 the most likely cause with cited evidence, and proposes one fix from a short allowlist.

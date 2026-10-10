@@ -1,0 +1,13 @@
+# Default gitleaks rules plus a narrow allowlist of known non-secrets. Each entry matches
+# one exact shape; anything else that looks like a secret still fails CI.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known non-secrets: request correlation ids in evaluation records, fake values in redaction tests"
+regexTarget = "line"
+regexes = [
+  '''"correlation_id": "api:[0-9a-f]{16}"''',
+  '''AKIAABCDEFGHIJKLMNOP''',
+  '''from-(file|env)-0123456789''',
+]

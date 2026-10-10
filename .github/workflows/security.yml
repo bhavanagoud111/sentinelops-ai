@@ -18,9 +18,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      # The gitleaks CLI, pinned and checksum-verified, scanning the full history on every
+      # run (the GitHub Action derives a commit range from the push event, which breaks on a
+      # repository's first push and after history rewrites).
+      - name: gitleaks (full history)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: "8.24.3"
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "${base}/${tarball}"
+          curl -sSfL "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" | grep " ${tarball}$" | sha256sum -c -
+          tar -xzf "${tarball}" gitleaks
+          ./gitleaks detect --source . --redact --verbose --exit-code 1
 
   dependencies:
     runs-on: ubuntu-24.04
