@@ -1,0 +1,22 @@
+[project]
+name = "sentinel-correlator"
+version = "0.1.0"
+description = "Groups alert events into incidents by correlation key"
+requires-python = ">=3.12,<3.13"
+dependencies = ["sentinel-common", "sentinel-storage", "sentinel-messaging", "sentinel-contracts"]
+
+[project.scripts]
+sentinel-correlator = "sentinel_correlator.main:main"
+
+[tool.uv.sources]
+sentinel-common = { workspace = true }
+sentinel-storage = { workspace = true }
+sentinel-messaging = { workspace = true }
+sentinel-contracts = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentinel_correlator"]

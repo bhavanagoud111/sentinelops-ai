@@ -9,6 +9,7 @@
 .env
 .env.*
 node_modules
+apps/dashboard
 docs
 tests
 infra

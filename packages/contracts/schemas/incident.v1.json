@@ -29,6 +29,17 @@
   },
   "additionalProperties": false,
   "properties": {
+    "alert_active": {
+      "default": true,
+      "title": "Alert Active",
+      "type": "boolean"
+    },
+    "alert_count": {
+      "default": 1,
+      "minimum": 0,
+      "title": "Alert Count",
+      "type": "integer"
+    },
     "environment": {
       "maxLength": 128,
       "minLength": 1,
@@ -58,6 +69,19 @@
       "title": "Last Seen",
       "type": "string"
     },
+    "resolved_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Resolved At"
+    },
     "service": {
       "maxLength": 128,
       "minLength": 1,
@@ -73,8 +97,13 @@
     },
     "summary": {
       "default": "",
-      "maxLength": 2000,
+      "maxLength": 4000,
       "title": "Summary",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 256,
+      "title": "Title",
       "type": "string"
     },
     "version": {
@@ -88,6 +117,7 @@
   "required": [
     "id",
     "fingerprint",
+    "title",
     "status",
     "severity",
     "service",

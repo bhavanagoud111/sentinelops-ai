@@ -1,0 +1,13 @@
+[project]
+name = "sentinel-messaging"
+version = "0.1.0"
+description = "Kafka-protocol producer/consumer helpers with retry and dead-lettering"
+requires-python = ">=3.12,<3.13"
+dependencies = ["aiokafka>=0.12", "pydantic-settings>=2.7", "opentelemetry-api>=1.30"]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentinel_messaging"]

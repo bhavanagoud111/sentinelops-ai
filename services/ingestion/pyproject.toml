@@ -1,0 +1,25 @@
+[project]
+name = "sentinel-ingestion"
+version = "0.1.0"
+description = "Alert ingestion gateway: auth, validation, idempotent persistence to the outbox"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "sentinel-contracts",
+    "sentinel-common",
+    "sentinel-storage",
+    "opentelemetry-instrumentation-fastapi>=0.51b0",
+]
+
+[tool.uv.sources]
+sentinel-contracts = { workspace = true }
+sentinel-common = { workspace = true }
+sentinel-storage = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentinel_ingestion"]

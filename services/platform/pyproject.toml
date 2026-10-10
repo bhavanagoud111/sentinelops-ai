@@ -1,0 +1,24 @@
+[project]
+name = "sentinel-platform"
+version = "0.1.0"
+description = "Meta-package: every SentinelOps control-plane service, for the shared runtime image"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "sentinel-ingestion",
+    "sentinel-relay",
+    "sentinel-correlator",
+    "sentinel-api",
+]
+
+[tool.uv.sources]
+sentinel-ingestion = { workspace = true }
+sentinel-relay = { workspace = true }
+sentinel-correlator = { workspace = true }
+sentinel-api = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true

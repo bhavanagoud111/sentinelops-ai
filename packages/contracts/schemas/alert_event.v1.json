@@ -9,6 +9,14 @@
       "title": "AlertSource",
       "type": "string"
     },
+    "AlertStatus": {
+      "enum": [
+        "firing",
+        "resolved"
+      ],
+      "title": "AlertStatus",
+      "type": "string"
+    },
     "Severity": {
       "enum": [
         "critical",
@@ -21,8 +29,15 @@
     }
   },
   "additionalProperties": false,
-  "description": "A single normalized alert occurrence.",
+  "description": "A single normalized alert occurrence (one status change of one alert).",
   "properties": {
+    "alertname": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Alertname",
+      "type": "string"
+    },
     "annotations": {
       "additionalProperties": {
         "maxLength": 1024,
@@ -35,6 +50,19 @@
       "title": "Annotations",
       "type": "object"
     },
+    "ends_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ends At"
+    },
     "environment": {
       "maxLength": 128,
       "minLength": 1,
@@ -43,7 +71,7 @@
       "type": "string"
     },
     "event_id": {
-      "description": "Globally unique, deterministic id used for dedup",
+      "description": "Deterministic id used for deduplication",
       "maxLength": 128,
       "minLength": 1,
       "pattern": "^[A-Za-z0-9._:/-]+$",
@@ -51,7 +79,7 @@
       "type": "string"
     },
     "fingerprint": {
-      "description": "Stable identity of the alerting condition",
+      "description": "Correlation key of the alerting condition: environment:service:alertname",
       "maxLength": 128,
       "minLength": 1,
       "pattern": "^[A-Za-z0-9._:/-]+$",
@@ -98,11 +126,16 @@
       "format": "date-time",
       "title": "Starts At",
       "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/AlertStatus"
     }
   },
   "required": [
     "event_id",
     "source",
+    "status",
+    "alertname",
     "fingerprint",
     "service",
     "environment",

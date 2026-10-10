@@ -33,7 +33,11 @@ the blueprint leaves open.
 | Collector → Prometheus/Loki/Tempo | built | |
 | Alert rules A, B + pipeline health | built | `infra/observability/prometheus/rules` |
 | Grafana service overview | built | provisioned, read-only |
-| Ingestion gateway, outbox, Redpanda, correlator, Postgres | Phase 2 | |
+| Ingestion gateway (auth, rate limit, validation, dedup) | built | `services/ingestion` |
+| Transactional outbox + relay → Redpanda | built | `packages/storage/outbox.py`, `services/relay` |
+| Correlator (ADR-010) | built | `services/correlator`, replay-safe via `processed_events` |
+| PostgreSQL + Alembic, hash-chained append-only audit | built | `packages/storage` |
+| Incidents REST API + JWT/RBAC (ADR-011) | built | `apps/api` |
 | Investigation agents | Phase 3 | |
 | Approvals, policy, executor (kind) | Phase 4 | |
 | React dashboard, SSE | Phase 5 | |
@@ -59,9 +63,8 @@ raw metric names only appear in the recording rules.
 - Tempo is pinned to 2.10.x; Tempo 3.x changed its ingest architecture (ADR-003).
 - Alertmanager routes to a `null` receiver in Phase 1. Phase 2 adds the gateway webhook.
 
-## Open questions (to resolve in Phase 2)
-- Correlation window and re-open policy for a recurring fingerprint.
-- Multi-service grouping (e.g. checkout 5xx caused by inventory latency).
+## Open questions
+- Multi-service grouping (e.g. checkout 5xx caused by inventory latency) is left to the investigator (ADR-010).
 - `evidence` table needs an explicit immutable `evidence_id` (spec §9 vs §12).
 
 ## Known limitations

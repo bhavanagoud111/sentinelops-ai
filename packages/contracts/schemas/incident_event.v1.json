@@ -1,0 +1,212 @@
+{
+  "$defs": {
+    "Incident": {
+      "additionalProperties": false,
+      "properties": {
+        "alert_active": {
+          "default": true,
+          "title": "Alert Active",
+          "type": "boolean"
+        },
+        "alert_count": {
+          "default": 1,
+          "minimum": 0,
+          "title": "Alert Count",
+          "type": "integer"
+        },
+        "environment": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/-]+$",
+          "title": "Environment",
+          "type": "string"
+        },
+        "fingerprint": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/-]+$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "first_seen": {
+          "format": "date-time",
+          "title": "First Seen",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "last_seen": {
+          "format": "date-time",
+          "title": "Last Seen",
+          "type": "string"
+        },
+        "resolved_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolved At"
+        },
+        "service": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/-]+$",
+          "title": "Service",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "status": {
+          "$ref": "#/$defs/IncidentStatus"
+        },
+        "summary": {
+          "default": "",
+          "maxLength": 4000,
+          "title": "Summary",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 256,
+          "title": "Title",
+          "type": "string"
+        },
+        "version": {
+          "default": 0,
+          "description": "Optimistic-lock version",
+          "minimum": 0,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "fingerprint",
+        "title",
+        "status",
+        "severity",
+        "service",
+        "environment",
+        "first_seen",
+        "last_seen"
+      ],
+      "title": "Incident",
+      "type": "object"
+    },
+    "IncidentEventKind": {
+      "enum": [
+        "created",
+        "alert_attached",
+        "alert_cleared",
+        "reopened",
+        "status_changed"
+      ],
+      "title": "IncidentEventKind",
+      "type": "string"
+    },
+    "IncidentStatus": {
+      "enum": [
+        "OPEN",
+        "TRIAGING",
+        "INVESTIGATING",
+        "AWAITING_APPROVAL",
+        "REMEDIATING",
+        "VERIFYING",
+        "RESOLVED",
+        "NEEDS_HUMAN",
+        "REJECTED",
+        "FAILED"
+      ],
+      "title": "IncidentStatus",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "critical",
+        "high",
+        "warning",
+        "info"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "cause_event_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/-]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cause Event Id"
+    },
+    "correlation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Correlation Id",
+      "type": "string"
+    },
+    "event_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "incident": {
+      "$ref": "#/$defs/Incident"
+    },
+    "kind": {
+      "$ref": "#/$defs/IncidentEventKind"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "previous_status": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IncidentStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "event_id",
+    "kind",
+    "incident",
+    "correlation_id",
+    "occurred_at"
+  ],
+  "title": "IncidentEvent",
+  "type": "object"
+}

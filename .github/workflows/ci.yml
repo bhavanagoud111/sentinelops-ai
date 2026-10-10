@@ -30,7 +30,7 @@ jobs:
       - name: lint
         run: uv run --frozen ruff check . && uv run --frozen ruff format --check .
       - name: typecheck
-        run: uv run --frozen mypy packages demo tests scripts
+        run: uv run --frozen mypy packages demo services apps tests scripts
       - name: unit tests
         run: uv run --frozen pytest
       - name: contract schema drift

@@ -44,7 +44,7 @@ lint: ## Lint + format check
 	$(UV) ruff format --check .
 
 typecheck: ## mypy (strict)
-	$(UV) mypy packages demo tests scripts
+	$(UV) mypy packages demo services apps tests scripts
 
 test: ## Unit tests
 	$(UV) pytest
@@ -59,19 +59,27 @@ check: lint typecheck test ## Everything CI runs (minus Docker)
 	$(UV) python scripts/export_schemas.py --check
 
 # ------------------------------------------------------------------ stack
-.PHONY: up down destroy ps logs build config
-config: ## Validate compose file
+.PHONY: up down destroy ps logs build config secrets migrate
+secrets: ## Generate per-machine random secrets into .cache/secrets (idempotent)
+	@mkdir -p .cache/secrets
+	@for s in ingest_token jwt_secret; do \
+	  [ -s .cache/secrets/$$s ] || { openssl rand -hex 32 > .cache/secrets/$$s && echo "generated .cache/secrets/$$s"; }; \
+	  chmod 644 .cache/secrets/$$s; \
+	done
+
+config: secrets ## Validate compose file
 	$(COMPOSE) config --quiet && echo "compose config OK"
 
-build: ## Build demo service images
+build: secrets ## Build images
 	$(COMPOSE) build
 
-up: ## Start the local stack
+up: secrets ## Start the local stack
 	$(COMPOSE) up -d --build --wait
 	@echo ""
 	@echo "  Grafana       http://127.0.0.1:$${GRAFANA_PORT:-13000}"
 	@echo "  Prometheus    http://127.0.0.1:$${PROMETHEUS_PORT:-19090}"
 	@echo "  Alertmanager  http://127.0.0.1:$${ALERTMANAGER_PORT:-19093}"
+	@echo "  API docs      http://127.0.0.1:$${API_PORT:-18000}/docs"
 	@echo "  Checkout API  http://127.0.0.1:$${CHECKOUT_PORT:-18081}/docs"
 
 down: ## Stop the stack (keeps volumes)
@@ -79,6 +87,9 @@ down: ## Stop the stack (keeps volumes)
 
 destroy: ## Stop the stack and delete its volumes (SentinelOps only)
 	$(COMPOSE) down -v --remove-orphans
+
+migrate: ## Apply database migrations
+	$(COMPOSE) run --rm migrate
 
 ps: ## Show stack status
 	$(COMPOSE) ps

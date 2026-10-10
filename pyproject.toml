@@ -11,6 +11,13 @@ dependencies = [
     "demo-checkout",
     "demo-inventory",
     "demo-loadgen",
+    "sentinel-storage",
+    "sentinel-messaging",
+    "sentinel-ingestion",
+    "sentinel-relay",
+    "sentinel-correlator",
+    "sentinel-api",
+    "sentinel-platform",
 ]
 
 [dependency-groups]
@@ -32,6 +39,13 @@ members = [
     "demo/microservices/checkout",
     "demo/microservices/inventory",
     "demo/microservices/loadgen",
+    "packages/storage",
+    "packages/messaging",
+    "services/ingestion",
+    "services/relay",
+    "services/correlator",
+    "apps/api",
+    "services/platform",
 ]
 
 [tool.uv.sources]
@@ -41,6 +55,13 @@ demo-faultkit = { workspace = true }
 demo-checkout = { workspace = true }
 demo-inventory = { workspace = true }
 demo-loadgen = { workspace = true }
+sentinel-storage = { workspace = true }
+sentinel-messaging = { workspace = true }
+sentinel-ingestion = { workspace = true }
+sentinel-relay = { workspace = true }
+sentinel-correlator = { workspace = true }
+sentinel-api = { workspace = true }
+sentinel-platform = { workspace = true }
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
@@ -69,11 +90,17 @@ mypy_path = [
     "demo/microservices/checkout/src",
     "demo/microservices/inventory/src",
     "demo/microservices/loadgen/src",
+    "packages/storage/src",
+    "packages/messaging/src",
+    "services/ingestion/src",
+    "services/relay/src",
+    "services/correlator/src",
+    "apps/api/src",
 ]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["opentelemetry.*"]
+module = ["opentelemetry.*", "aiokafka.*", "asyncpg.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------- pytest

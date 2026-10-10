@@ -75,13 +75,17 @@ class Incident(BaseModel):
 
     id: UUID
     fingerprint: Identifier
+    title: Annotated[str, Field(max_length=256)]
     status: IncidentStatus
     severity: Severity
     service: Identifier
     environment: Identifier
+    alert_active: bool = True
+    alert_count: Annotated[int, Field(ge=0)] = 1
     first_seen: AwareDatetime
     last_seen: AwareDatetime
-    summary: Annotated[str, Field(max_length=2000)] = ""
+    resolved_at: AwareDatetime | None = None
+    summary: Annotated[str, Field(max_length=4000)] = ""
     version: Annotated[int, Field(ge=0, description="Optimistic-lock version")] = 0
 
 

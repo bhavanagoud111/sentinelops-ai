@@ -18,6 +18,8 @@ RUN test -n "${PACKAGE}" || (echo "PACKAGE build-arg is required" && exit 1)
 COPY pyproject.toml uv.lock README.md ./
 COPY packages ./packages
 COPY demo/microservices ./demo/microservices
+COPY services ./services
+COPY apps ./apps
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable --package "${PACKAGE}"
 

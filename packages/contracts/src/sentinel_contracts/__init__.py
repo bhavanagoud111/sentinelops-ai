@@ -4,7 +4,14 @@ Contracts are the stable boundary between services: changing a field here is a
 schema change and must bump ``schema_version`` (see docs/adr/ADR-004).
 """
 
-from sentinel_contracts.events import SCHEMA_VERSION, AlertEvent, AlertSource, Severity
+from sentinel_contracts.events import (
+    SCHEMA_VERSION,
+    AlertEvent,
+    AlertSource,
+    AlertStatus,
+    Severity,
+)
+from sentinel_contracts.incident_events import IncidentEvent, IncidentEventKind
 from sentinel_contracts.incidents import (
     ALLOWED_TRANSITIONS,
     TERMINAL_STATUSES,
@@ -23,7 +30,10 @@ __all__ = [
     "TERMINAL_STATUSES",
     "AlertEvent",
     "AlertSource",
+    "AlertStatus",
     "Incident",
+    "IncidentEvent",
+    "IncidentEventKind",
     "IncidentStatus",
     "IncidentTransition",
     "InvalidTransitionError",

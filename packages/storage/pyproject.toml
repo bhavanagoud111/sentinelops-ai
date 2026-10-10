@@ -1,0 +1,22 @@
+[project]
+name = "sentinel-storage"
+version = "0.1.0"
+description = "PostgreSQL models, migrations and repositories for SentinelOps"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "sentinel-contracts",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "pydantic-settings>=2.7",
+]
+
+[tool.uv.sources]
+sentinel-contracts = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentinel_storage"]

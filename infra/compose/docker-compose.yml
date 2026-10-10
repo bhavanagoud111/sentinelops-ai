@@ -1,4 +1,4 @@
-# SentinelOps local stack — Phase 1 (telemetry).
+# SentinelOps local stack: control plane + observability + (until Phase 4) demo workload.
 # All host ports bind to 127.0.0.1 only. Run via `make up` from the repo root.
 name: sentinelops
 
@@ -21,6 +21,25 @@ x-otel-env: &otel-env
   DEPLOYMENT_ENVIRONMENT: local
   LOG_LEVEL: INFO
   FAULT_ADMIN_TOKEN: ${FAULT_ADMIN_TOKEN:-local-dev-fault-token}
+
+x-platform-env: &platform-env
+  DATABASE_URL: postgresql+asyncpg://sentinel:${POSTGRES_PASSWORD:-sentinel}@postgres:5432/sentinelops
+  KAFKA_BOOTSTRAP: redpanda:9092
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_METRIC_EXPORT_INTERVAL: "10000"
+  OTEL_SEMCONV_STABILITY_OPT_IN: http
+  DEPLOYMENT_ENVIRONMENT: local
+  LOG_LEVEL: INFO
+
+x-platform-service: &platform-service
+  <<: *python-service
+  image: sentinelops/platform:dev
+  build:
+    context: ../..
+    dockerfile: infra/docker/python-service.Dockerfile
+    args: { PACKAGE: sentinel-platform }
+  environment:
+    <<: *platform-env
 
 services:
   # ------------------------------------------------------------- demo workload
@@ -78,6 +97,103 @@ services:
     depends_on:
       checkout: { condition: service_healthy }
 
+  # ------------------------------------------------------------- control plane
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentinel}
+      POSTGRES_DB: sentinelops
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    ports: ["127.0.0.1:${POSTGRES_PORT:-15432}:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinelops"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [sentinelops]
+
+  redpanda:
+    image: redpandadata/redpanda:v26.1.18
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=512M
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:${KAFKA_PORT:-19092}
+    ports:
+      - "127.0.0.1:${KAFKA_PORT:-19092}:19092"
+    volumes: [redpanda-data:/var/lib/redpanda/data]
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    networks: [sentinelops]
+
+  migrate:
+    <<: *platform-service
+    command: ["python", "-m", "sentinel_storage.migrate", "upgrade"]
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  ingestion:
+    <<: *platform-service
+    command: ["uvicorn", "--factory", "sentinel_ingestion.app:build", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+    environment:
+      <<: *platform-env
+      OTEL_SERVICE_NAME: sentinel-ingestion
+      INGEST_TOKEN_FILE: /run/secrets/ingest_token
+    secrets: [ingest_token]
+    ports: ["127.0.0.1:${INGESTION_PORT:-18001}:8000"]
+    healthcheck: *py-health
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  relay:
+    <<: *platform-service
+    command: ["sentinel-relay"]
+    environment:
+      <<: *platform-env
+      OTEL_SERVICE_NAME: sentinel-relay
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redpanda: { condition: service_healthy }
+
+  correlator:
+    <<: *platform-service
+    command: ["sentinel-correlator"]
+    environment:
+      <<: *platform-env
+      OTEL_SERVICE_NAME: sentinel-correlator
+      REOPEN_WINDOW_MINUTES: "30"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redpanda: { condition: service_healthy }
+
+  api:
+    <<: *platform-service
+    command: ["uvicorn", "--factory", "sentinel_api.app:build", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+    environment:
+      <<: *platform-env
+      OTEL_SERVICE_NAME: sentinel-api
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      AUTH_DEV_LOGIN: ${AUTH_DEV_LOGIN:-true}
+      CORS_ORIGINS: http://127.0.0.1:${DASHBOARD_PORT:-13001},http://localhost:${DASHBOARD_PORT:-13001}
+    secrets: [jwt_secret]
+    ports: ["127.0.0.1:${API_PORT:-18000}:8000"]
+    healthcheck: *py-health
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
   # ------------------------------------------------------------- observability
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.162.0
@@ -112,6 +228,7 @@ services:
       - --storage.path=/alertmanager
     volumes:
       - ../observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    secrets: [ingest_token]
     ports: ["127.0.0.1:${ALERTMANAGER_PORT:-19093}:9093"]
     restart: unless-stopped
     networks: [sentinelops]
@@ -160,3 +277,12 @@ networks:
 
 volumes:
   prometheus-data:
+  postgres-data:
+  redpanda-data:
+
+# Generated per machine by `make secrets` (random, git-ignored).
+secrets:
+  ingest_token:
+    file: ../../.cache/secrets/ingest_token
+  jwt_secret:
+    file: ../../.cache/secrets/jwt_secret

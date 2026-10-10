@@ -31,6 +31,14 @@ class Severity(StrEnum):
     WARNING = "warning"
     INFO = "info"
 
+    @property
+    def rank(self) -> int:
+        """Higher is more severe; used to escalate an incident's severity."""
+        return _SEVERITY_RANK[self]
+
+
+_SEVERITY_RANK = {Severity.INFO: 0, Severity.WARNING: 1, Severity.HIGH: 2, Severity.CRITICAL: 3}
+
 
 class AlertSource(StrEnum):
     ALERTMANAGER = "alertmanager"
@@ -38,31 +46,50 @@ class AlertSource(StrEnum):
     SYNTHETIC = "synthetic"
 
 
+class AlertStatus(StrEnum):
+    FIRING = "firing"
+    RESOLVED = "resolved"
+
+
 class AlertEvent(BaseModel):
-    """A single normalized alert occurrence."""
+    """A single normalized alert occurrence (one status change of one alert)."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     schema_version: Literal[1] = SCHEMA_VERSION
-    event_id: Identifier = Field(description="Globally unique, deterministic id used for dedup")
+    event_id: Identifier = Field(description="Deterministic id used for deduplication")
     source: AlertSource
-    fingerprint: Identifier = Field(description="Stable identity of the alerting condition")
+    status: AlertStatus
+    alertname: Identifier
+    fingerprint: Identifier = Field(
+        description="Correlation key of the alerting condition: environment:service:alertname"
+    )
     service: Identifier
     environment: Identifier
     severity: Severity
     starts_at: AwareDatetime
+    ends_at: AwareDatetime | None = None
     labels: LabelMap = Field(default_factory=dict, max_length=64)
     annotations: LabelMap = Field(default_factory=dict, max_length=32)
     received_at: AwareDatetime
 
     @staticmethod
-    def derive_event_id(source: AlertSource, fingerprint: str, starts_at: datetime) -> str:
-        """Deterministic id: the same alert occurrence redelivered yields the same id.
+    def derive_fingerprint(environment: str, service: str, alertname: str) -> str:
+        """Correlation key: alerts with the same key belong to the same incident."""
+        return f"{environment}:{service}:{alertname}"
+
+    @staticmethod
+    def derive_event_id(
+        source: AlertSource, source_fingerprint: str, starts_at: datetime, status: AlertStatus
+    ) -> str:
+        """Deterministic id: the same alert status change redelivered yields the same id.
 
         Alertmanager re-sends firing alerts on every ``repeat_interval``; keying on
-        (source, fingerprint, starts_at) makes those resends idempotent.
+        (source, source fingerprint, starts_at, status) makes those resends idempotent
+        while keeping the later "resolved" notification distinct.
         """
         raw = json.dumps(
-            [source.value, fingerprint, starts_at.isoformat()], separators=(",", ":")
+            [source.value, source_fingerprint, starts_at.isoformat(), status.value],
+            separators=(",", ":"),
         ).encode()
         return f"{source.value}:{hashlib.sha256(raw).hexdigest()[:32]}"

@@ -10,6 +10,7 @@ from sentinel_contracts import (
     ALLOWED_TRANSITIONS,
     AlertEvent,
     AlertSource,
+    AlertStatus,
     IncidentStatus,
     InvalidTransitionError,
     Severity,
@@ -26,7 +27,9 @@ def _event(**overrides: object) -> AlertEvent:
     data: dict[str, object] = {
         "event_id": "alertmanager:abc",
         "source": AlertSource.ALERTMANAGER,
-        "fingerprint": "fp-1",
+        "status": AlertStatus.FIRING,
+        "alertname": "CheckoutHigh5xxRate",
+        "fingerprint": "local:checkout:CheckoutHigh5xxRate",
         "service": "checkout",
         "environment": "local",
         "severity": Severity.CRITICAL,
@@ -91,16 +94,30 @@ class TestStateMachine:
 
 class TestAlertEvent:
     def test_event_id_is_deterministic(self) -> None:
-        a = AlertEvent.derive_event_id(AlertSource.ALERTMANAGER, "fp-1", NOW)
-        b = AlertEvent.derive_event_id(AlertSource.ALERTMANAGER, "fp-1", NOW)
+        a = AlertEvent.derive_event_id(AlertSource.ALERTMANAGER, "fp-1", NOW, AlertStatus.FIRING)
+        b = AlertEvent.derive_event_id(AlertSource.ALERTMANAGER, "fp-1", NOW, AlertStatus.FIRING)
         assert a == b
         assert a.startswith("alertmanager:")
 
     def test_event_id_differs_per_occurrence(self) -> None:
         later = NOW.replace(minute=5)
+        fire = AlertStatus.FIRING
         assert AlertEvent.derive_event_id(
-            AlertSource.ALERTMANAGER, "fp-1", NOW
-        ) != AlertEvent.derive_event_id(AlertSource.ALERTMANAGER, "fp-1", later)
+            AlertSource.ALERTMANAGER, "fp-1", NOW, fire
+        ) != AlertEvent.derive_event_id(AlertSource.ALERTMANAGER, "fp-1", later, fire)
+
+    def test_event_id_differs_between_firing_and_resolved(self) -> None:
+        src = AlertSource.ALERTMANAGER
+        assert AlertEvent.derive_event_id(
+            src, "fp-1", NOW, AlertStatus.FIRING
+        ) != AlertEvent.derive_event_id(src, "fp-1", NOW, AlertStatus.RESOLVED)
+
+    def test_fingerprint_is_correlation_key(self) -> None:
+        fp = AlertEvent.derive_fingerprint("local", "checkout", "CheckoutHigh5xxRate")
+        assert fp == "local:checkout:CheckoutHigh5xxRate"
+
+    def test_severity_rank_orders(self) -> None:
+        assert Severity.CRITICAL.rank > Severity.HIGH.rank > Severity.WARNING.rank
 
     def test_valid_event_round_trips(self) -> None:
         event = _event(labels={"alertname": "CheckoutHigh5xxRate"})
