@@ -1,0 +1,295 @@
+{
+ "scenario": "D",
+ "started_at": "2026-10-10T16:31:31.750245+00:00",
+ "incident_id": "e7783655-48c1-472d-80d4-5d59e4dea2f2",
+ "investigation": "proposed",
+ "top": [
+  "crash_loop_rollout",
+  "inventory"
+ ],
+ "proposal": {
+  "risk": "medium",
+  "params": {
+   "namespace": "sentinelops-demo",
+   "deployment": "inventory",
+   "to_revision": null
+  },
+  "rationale": "Pods of inventory are crash-looping (restarts=3, last exit: ['Error']) right after a rollout (initial revision pod template annotations only (e.g. restart) env FEATURE_NEW_STOCK_INDEX: off -> on env FEATURE_NEW_STOCK_INDEX: on -> off env INVENTORY_STOCK_SEED: default -> corrupt).",
+  "runbook_id": "rollback_deployment",
+  "blast_radius": {
+   "risk": "medium",
+   "namespace": "sentinelops-demo",
+   "dependents": [
+    "checkout"
+   ],
+   "deployment": "inventory",
+   "criticality": "high",
+   "current_revision": 6
+  },
+  "evidence_ids": [
+   "ev_bba984f7b750100e",
+   "ev_142e20e3e32af66f",
+   "ev_7cc60afeedb0354e"
+  ],
+  "hypothesis_id": "h1",
+  "target_revision": 6
+ },
+ "diagnosis_correct": true,
+ "outcome_expected": true,
+ "runbook_expected": true,
+ "execution": {
+  "id": "3c45ccc3-c71c-4886-8af7-9fc6b8c0f2c0",
+  "incident_id": "e7783655-48c1-472d-80d4-5d59e4dea2f2",
+  "approval_id": "49be228b-5060-417e-ae1a-359233601f52",
+  "runbook_id": "rollback_deployment",
+  "target": "sentinelops-demo/inventory",
+  "params": {
+   "namespace": "sentinelops-demo",
+   "deployment": "inventory",
+   "to_revision": null
+  },
+  "status": "succeeded",
+  "requested_by": "oscar.operator",
+  "policy": {
+   "checks": [
+    {
+     "name": "mode_allows_writes",
+     "detail": "REMEDIATION_MODE=sandbox",
+     "passed": true
+    },
+    {
+     "name": "runbook_allowlisted",
+     "detail": "runbook 'rollback_deployment'",
+     "passed": true
+    },
+    {
+     "name": "params_valid",
+     "detail": "parameters match the runbook schema",
+     "passed": true
+    },
+    {
+     "name": "namespace_allowed",
+     "detail": "namespace 'sentinelops-demo'",
+     "passed": true
+    },
+    {
+     "name": "deployment_allowed",
+     "detail": "deployment 'inventory'",
+     "passed": true
+    },
+    {
+     "name": "approval_present",
+     "detail": "approval record found",
+     "passed": true
+    },
+    {
+     "name": "approval_approved",
+     "detail": "approval status 'approved'",
+     "passed": true
+    },
+    {
+     "name": "approval_not_expired",
+     "detail": "expires 2026-10-10T16:47:35.205244+00:00",
+     "passed": true
+    },
+    {
+     "name": "four_eyes",
+     "detail": "requested by 'oscar.operator', approved by 'anna.approver'",
+     "passed": true
+    },
+    {
+     "name": "approval_bound_to_action",
+     "detail": "approval hash matches incident, runbook, parameters and target revision",
+     "passed": true
+    },
+    {
+     "name": "incident_state",
+     "detail": "incident is REMEDIATING",
+     "passed": true
+    },
+    {
+     "name": "target_exists",
+     "detail": "deployment sentinelops-demo/inventory",
+     "passed": true
+    },
+    {
+     "name": "no_revision_drift",
+     "detail": "live revision 6, approved against 6",
+     "passed": true
+    },
+    {
+     "name": "rollback_target_available",
+     "detail": "rollback to revision 5 (available [1, 2, 4, 5, 6])",
+     "passed": true
+    },
+    {
+     "name": "no_concurrent_action",
+     "detail": "0 other action(s) in flight on this target",
+     "passed": true
+    },
+    {
+     "name": "cooldown_elapsed",
+     "detail": "last success 2026-10-10T15:59:06.629746+00:00, cooldown 0:05:00",
+     "passed": true
+    }
+   ],
+   "allowed": true
+  },
+  "command_template": "kubectl rollout undo deployment/inventory --to-revision=5 -n sentinelops-demo",
+  "before_state": {
+   "env": {
+    "OTEL_SERVICE_NAME": "inventory",
+    "INVENTORY_STOCK_SEED": "corrupt",
+    "DEPLOYMENT_ENVIRONMENT": "local",
+    "FEATURE_NEW_STOCK_INDEX": "off",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector:4318",
+    "OTEL_METRIC_EXPORT_INTERVAL": "5000",
+    "OTEL_SEMCONV_STABILITY_OPT_IN": "http"
+   },
+   "image": "sentinelops/demo-inventory:dev",
+   "replicas": 2,
+   "revision": 6,
+   "generation": 6,
+   "ready_replicas": 2
+  },
+  "after_state": {
+   "env": {
+    "OTEL_SERVICE_NAME": "inventory",
+    "INVENTORY_STOCK_SEED": "default",
+    "DEPLOYMENT_ENVIRONMENT": "local",
+    "FEATURE_NEW_STOCK_INDEX": "off",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector:4318",
+    "OTEL_METRIC_EXPORT_INTERVAL": "5000",
+    "OTEL_SEMCONV_STABILITY_OPT_IN": "http"
+   },
+   "image": "sentinelops/demo-inventory:dev",
+   "replicas": 2,
+   "revision": 7,
+   "generation": 7,
+   "ready_replicas": 2,
+   "rollout_seconds": 2.0
+  },
+  "verification": {
+   "rounds": [
+    {
+     "at": "2026-10-10T16:33:07.474777+00:00",
+     "checks": [
+      "pods 2/2 ready, waiting=[]"
+     ],
+     "healthy": true,
+     "evidence_ids": [
+      "ev_a90c5857dffb9b62"
+     ]
+    },
+    {
+     "at": "2026-10-10T16:33:27.498187+00:00",
+     "checks": [
+      "pods 2/2 ready, waiting=[]"
+     ],
+     "healthy": true,
+     "evidence_ids": [
+      "ev_d923bf87256183e0"
+     ]
+    }
+   ],
+   "recovered": true,
+   "required_passes": 2
+  },
+  "error": null,
+  "created_at": "2026-10-10T16:32:35.224798Z",
+  "started_at": "2026-10-10T16:32:35.391492Z",
+  "finished_at": "2026-10-10T16:32:37.425409Z"
+ },
+ "final_status": "RESOLVED",
+ "timings_s": {
+  "fault injected": 0.1,
+  "incident open (e7783655-48c1-472d-80d4-5d59e4dea2f2, AWAITING_APPROVAL)": 63.4,
+  "investigation proposed": 63.4,
+  "approval requested by oscar.operator (rollback_deployment {'namespace': 'sentinelops-demo', 'deployment': 'inventory', 'to_revision': None})": 63.5,
+  "approved by anna.approver": 63.5,
+  "execution requested (3c45ccc3-c71c-4886-8af7-9fc6b8c0f2c0)": 63.5,
+  "incident RESOLVED": 117.7
+ },
+ "timeline": [
+  {
+   "at": "2026-10-10T16:32:32.747179Z",
+   "kind": "alert",
+   "title": "DeploymentCrashLooping firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:46ae3ba87d86b3ed723a84a76a107977",
+    "severity": "critical"
+   }
+  },
+  {
+   "at": "2026-10-10T16:32:32.875481Z",
+   "kind": "transition",
+   "title": "\u2205 \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert DeploymentCrashLooping firing",
+    "correlation_id": "alertmanager:46ae3ba87d86b3ed723a84a76a107977"
+   }
+  },
+  {
+   "at": "2026-10-10T16:32:33.084373Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:46ae3ba87d86b3ed723a84a76a107977"
+   }
+  },
+  {
+   "at": "2026-10-10T16:32:33.084373Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:46ae3ba87d86b3ed723a84a76a107977"
+   }
+  },
+  {
+   "at": "2026-10-10T16:32:33.112986Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:46ae3ba87d86b3ed723a84a76a107977"
+   }
+  },
+  {
+   "at": "2026-10-10T16:32:35.224438Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing rollback_deployment (approved by anna.approver)",
+    "correlation_id": "3c45ccc3-c71c-4886-8af7-9fc6b8c0f2c0"
+   }
+  },
+  {
+   "at": "2026-10-10T16:32:37.425409Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "rollback_deployment applied in 2.0s; verifying",
+    "correlation_id": "3c45ccc3-c71c-4886-8af7-9fc6b8c0f2c0"
+   }
+  },
+  {
+   "at": "2026-10-10T16:33:27.507753Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: pods 2/2 ready, waiting=[]",
+    "correlation_id": "3c45ccc3-c71c-4886-8af7-9fc6b8c0f2c0"
+   }
+  }
+ ]
+}

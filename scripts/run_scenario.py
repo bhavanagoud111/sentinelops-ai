@@ -26,6 +26,7 @@ import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
 API = "http://127.0.0.1:18000"
+PROM = "http://127.0.0.1:19090"
 
 
 @dataclass(frozen=True)
@@ -122,6 +123,15 @@ def wait(desc: str, fn: Any, timeout: float, interval: float = 3.0) -> Any:
     raise TimeoutError(f"timed out after {timeout:.0f}s waiting for: {desc}")
 
 
+def alert_active(alertname: str) -> bool:
+    """True while Prometheus has the alert pending or firing."""
+    r = httpx.get(
+        f"{PROM}/api/v1/query", params={"query": f'ALERTS{{alertname="{alertname}"}}'}, timeout=10
+    )
+    r.raise_for_status()
+    return bool(r.json()["data"]["result"])
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("scenario", choices=sorted(SCENARIOS))
@@ -140,6 +150,14 @@ def main() -> int:
 
     marks["start"] = time.monotonic()
     run_started = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    # Alertmanager does not re-send an alert that never stopped firing (repeat_interval),
+    # so injecting while it is still active would never open an incident. Start clean.
+    alertname = sc.fingerprint.rsplit(":", 1)[-1]
+    if alert_active(alertname):
+        print(f"{alertname} still active: restoring baseline and waiting for it to clear")
+        subprocess.run([str(ROOT / "scripts" / "inject-fault.sh"), "reset"], check=False)
+        wait(f"{alertname} to clear", lambda: not alert_active(alertname), 600, 10)
+
     for inc in viewer.get("/api/v1/incidents", limit=200)["items"]:
         if inc["fingerprint"] == sc.fingerprint and inc["status"] in OPEN_STATES:
             try:
@@ -153,94 +171,98 @@ def main() -> int:
 
     subprocess.run([str(ROOT / "scripts" / "inject-fault.sh"), sc.key], check=True)
     mark("fault injected")
+    # Always restore the baseline, even if the run times out or fails: a fault left
+    # behind would contaminate every following scenario.
+    try:
 
-    def new_incident() -> dict[str, Any] | None:
-        # New, or a recently resolved one reopened by the correlator (ADR-010).
-        for i in viewer.get("/api/v1/incidents", limit=200)["items"]:
-            if i["fingerprint"] == sc.fingerprint and i["status"] != "RESOLVED":
-                return dict(i)
-        return None
+        def new_incident() -> dict[str, Any] | None:
+            # New, or a recently resolved one reopened by the correlator (ADR-010).
+            for i in viewer.get("/api/v1/incidents", limit=200)["items"]:
+                if i["fingerprint"] == sc.fingerprint and i["status"] != "RESOLVED":
+                    return dict(i)
+            return None
 
-    inc = wait("incident", new_incident, timeout=420)
-    mark(f"incident open ({inc['id']}, {inc['status']})")
-    iid = inc["id"]
+        inc = wait("incident", new_incident, timeout=420)
+        mark(f"incident open ({inc['id']}, {inc['status']})")
+        iid = inc["id"]
 
-    def investigated() -> dict[str, Any] | None:
-        invs = viewer.get(f"/api/v1/incidents/{iid}/investigations")
-        # Only an investigation of *this* occurrence counts (a reopened incident has older ones).
-        done = [i for i in invs if i["status"] != "running" and i["started_at"] >= run_started]
-        return done[0] if done else None
+        def investigated() -> dict[str, Any] | None:
+            invs = viewer.get(f"/api/v1/incidents/{iid}/investigations")
+            # Only an investigation of *this* occurrence counts (a reopened incident has older ones).
+            done = [i for i in invs if i["status"] != "running" and i["started_at"] >= run_started]
+            return done[0] if done else None
 
-    inv = wait("investigation", investigated, timeout=240)
-    mark(f"investigation {inv['status']}")
-    top = next((h for h in inv["hypotheses"] if h["verdict"] != "rejected"), None)
-    record.update(
-        incident_id=iid,
-        investigation=inv["status"],
-        top=(top["cause_category"], top["suspected_service"]) if top else None,
-        proposal=inv["proposal"],
-    )
-    print("  summary:", inv["summary"].replace("\n", " ")[:400])
-    ok_cause = (
-        top is not None and (top["cause_category"], top["suspected_service"]) == sc.expect_cause
-    )
-    ok_outcome = inv["status"] == sc.expect_outcome
-    ok_runbook = (inv["proposal"] or {}).get("runbook_id") == sc.expect_runbook
-    print(
-        f"  diagnosis correct: {ok_cause}  outcome as expected: {ok_outcome}  runbook: {ok_runbook}"
-    )
-    record.update(
-        diagnosis_correct=ok_cause, outcome_expected=ok_outcome, runbook_expected=ok_runbook
-    )
-
-    final_status = viewer.get(f"/api/v1/incidents/{iid}")["incident"]["status"]
-    if args.approve and inv["status"] == "proposed":
-        appr = operator.post(
-            f"/api/v1/incidents/{iid}/approvals", {}, key=f"req-{uuid.uuid4().hex}"
+        inv = wait("investigation", investigated, timeout=240)
+        mark(f"investigation {inv['status']}")
+        top = next((h for h in inv["hypotheses"] if h["verdict"] != "rejected"), None)
+        record.update(
+            incident_id=iid,
+            investigation=inv["status"],
+            top=(top["cause_category"], top["suspected_service"]) if top else None,
+            proposal=inv["proposal"],
         )
-        mark(f"approval requested by oscar.operator ({appr['runbook_id']} {appr['params']})")
-        approver.post(
-            f"/api/v1/approvals/{appr['id']}/decision",
-            {"decision": "approve", "reason": f"scenario {sc.key}: evidence reviewed"},
+        print("  summary:", inv["summary"].replace("\n", " ")[:400])
+        ok_cause = (
+            top is not None and (top["cause_category"], top["suspected_service"]) == sc.expect_cause
         )
-        mark("approved by anna.approver")
-        ex = operator.post(
-            f"/api/v1/incidents/{iid}/actions/{appr['runbook_id']}/execute",
-            {"approval_id": appr["id"]},
-            key=f"exec-{uuid.uuid4().hex}",
+        ok_outcome = inv["status"] == sc.expect_outcome
+        ok_runbook = (inv["proposal"] or {}).get("runbook_id") == sc.expect_runbook
+        print(
+            f"  diagnosis correct: {ok_cause}  outcome as expected: {ok_outcome}  runbook: {ok_runbook}"
         )
-        mark(f"execution requested ({ex['id']})")
-        final_status = wait(
-            "verification",
-            lambda: (
-                (s := viewer.get(f"/api/v1/incidents/{iid}")["incident"]["status"])
-                in {"RESOLVED", "FAILED", "NEEDS_HUMAN"}
-                and s
-            ),
-            timeout=420,
+        record.update(
+            diagnosis_correct=ok_cause, outcome_expected=ok_outcome, runbook_expected=ok_runbook
         )
-        mark(f"incident {final_status}")
-        execs = viewer.get(f"/api/v1/incidents/{iid}/executions")
-        record["execution"] = execs[0] if execs else None
-        if execs:
-            print(
-                "  command:",
-                execs[0]["command_template"],
-                "| policy:",
-                "allowed" if execs[0]["policy"].get("allowed") else "blocked",
+
+        final_status = viewer.get(f"/api/v1/incidents/{iid}")["incident"]["status"]
+        if args.approve and inv["status"] == "proposed":
+            appr = operator.post(
+                f"/api/v1/incidents/{iid}/approvals", {}, key=f"req-{uuid.uuid4().hex}"
             )
+            mark(f"approval requested by oscar.operator ({appr['runbook_id']} {appr['params']})")
+            approver.post(
+                f"/api/v1/approvals/{appr['id']}/decision",
+                {"decision": "approve", "reason": f"scenario {sc.key}: evidence reviewed"},
+            )
+            mark("approved by anna.approver")
+            ex = operator.post(
+                f"/api/v1/incidents/{iid}/actions/{appr['runbook_id']}/execute",
+                {"approval_id": appr["id"]},
+                key=f"exec-{uuid.uuid4().hex}",
+            )
+            mark(f"execution requested ({ex['id']})")
+            final_status = wait(
+                "verification",
+                lambda: (
+                    (s := viewer.get(f"/api/v1/incidents/{iid}")["incident"]["status"])
+                    in {"RESOLVED", "FAILED", "NEEDS_HUMAN"}
+                    and s
+                ),
+                timeout=420,
+            )
+            mark(f"incident {final_status}")
+            execs = viewer.get(f"/api/v1/incidents/{iid}/executions")
+            record["execution"] = execs[0] if execs else None
+            if execs:
+                print(
+                    "  command:",
+                    execs[0]["command_template"],
+                    "| policy:",
+                    "allowed" if execs[0]["policy"].get("allowed") else "blocked",
+                )
 
-    record.update(
-        final_status=final_status,
-        timings_s={k: round(v - marks["start"], 1) for k, v in marks.items() if k != "start"},
-        timeline=viewer.get(f"/api/v1/incidents/{iid}/timeline"),
-    )
-    out = Path(args.out_dir) / f"{sc.key}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.json"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(record, indent=1, default=str))
-    print(f"record: {out}")
-    if not args.no_reset:
-        subprocess.run([str(ROOT / "scripts" / "inject-fault.sh"), "reset"], check=False)
+        record.update(
+            final_status=final_status,
+            timings_s={k: round(v - marks["start"], 1) for k, v in marks.items() if k != "start"},
+            timeline=viewer.get(f"/api/v1/incidents/{iid}/timeline"),
+        )
+        out = Path(args.out_dir) / f"{sc.key}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(record, indent=1, default=str))
+        print(f"record: {out}")
+    finally:
+        if not args.no_reset:
+            subprocess.run([str(ROOT / "scripts" / "inject-fault.sh"), "reset"], check=False)
     success = (
         ok_cause
         and ok_outcome

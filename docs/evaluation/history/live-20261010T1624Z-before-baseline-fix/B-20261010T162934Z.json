@@ -1,0 +1,289 @@
+{
+ "scenario": "B",
+ "started_at": "2026-10-10T16:26:48.978047+00:00",
+ "incident_id": "0767415a-7dc4-4da8-95c0-d2dd44c91381",
+ "investigation": "abstained",
+ "top": null,
+ "proposal": null,
+ "diagnosis_correct": false,
+ "outcome_expected": false,
+ "runbook_expected": false,
+ "final_status": "NEEDS_HUMAN",
+ "timings_s": {
+  "fault injected": 0.0,
+  "incident open (0767415a-7dc4-4da8-95c0-d2dd44c91381, NEEDS_HUMAN)": 165.8,
+  "investigation abstained": 165.8
+ },
+ "timeline": [
+  {
+   "at": "2026-10-10T15:38:32.745285Z",
+   "kind": "alert",
+   "title": "InventoryHighLatencyP95 firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:8a17f339a1e0d7155e822f5a67ab6b77",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T15:38:32.896032Z",
+   "kind": "transition",
+   "title": "\u2205 \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert InventoryHighLatencyP95 firing",
+    "correlation_id": "alertmanager:8a17f339a1e0d7155e822f5a67ab6b77"
+   }
+  },
+  {
+   "at": "2026-10-10T15:38:33.113426Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:8a17f339a1e0d7155e822f5a67ab6b77"
+   }
+  },
+  {
+   "at": "2026-10-10T15:38:33.113426Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:8a17f339a1e0d7155e822f5a67ab6b77"
+   }
+  },
+  {
+   "at": "2026-10-10T15:38:33.166167Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:8a17f339a1e0d7155e822f5a67ab6b77"
+   }
+  },
+  {
+   "at": "2026-10-10T15:38:33.661561Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing disable_feature_flag (approved by anna.approver)",
+    "correlation_id": "bdd916a0-568c-44b6-80c9-dfccbd081214"
+   }
+  },
+  {
+   "at": "2026-10-10T15:38:41.814097Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "disable_feature_flag applied in 8.0s; verifying",
+    "correlation_id": "bdd916a0-568c-44b6-80c9-dfccbd081214"
+   }
+  },
+  {
+   "at": "2026-10-10T15:39:31.961776Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: metric.latency_p95@inventory: latest 2.3316 below threshold 6.9756; pods 2/2 ready, waiting=[]",
+    "correlation_id": "bdd916a0-568c-44b6-80c9-dfccbd081214"
+   }
+  },
+  {
+   "at": "2026-10-10T15:40:32.743228Z",
+   "kind": "alert",
+   "title": "InventoryHighLatencyP95 resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:0840198e3bad7a847311111ad335a132",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T15:55:42.743113Z",
+   "kind": "alert",
+   "title": "InventoryHighLatencyP95 firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:e72933fe9a944788f20710f0161d802f",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T15:55:42.867240Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert InventoryHighLatencyP95 recurred within reopen window",
+    "correlation_id": "alertmanager:e72933fe9a944788f20710f0161d802f"
+   }
+  },
+  {
+   "at": "2026-10-10T15:55:43.084465Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:e72933fe9a944788f20710f0161d802f"
+   }
+  },
+  {
+   "at": "2026-10-10T15:55:43.084465Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:e72933fe9a944788f20710f0161d802f"
+   }
+  },
+  {
+   "at": "2026-10-10T15:55:43.137913Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 NEEDS_HUMAN",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation abstained",
+    "correlation_id": "alertmanager:e72933fe9a944788f20710f0161d802f"
+   }
+  },
+  {
+   "at": "2026-10-10T15:57:42.743015Z",
+   "kind": "alert",
+   "title": "InventoryHighLatencyP95 resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:ffe15b5f40f0a78deb752360c21b4704",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T16:05:22.455012Z",
+   "kind": "transition",
+   "title": "NEEDS_HUMAN \u2192 RESOLVED",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "resolved by human: closing stale incident before scenario B",
+    "correlation_id": "api:813f9622bdb74ea0"
+   }
+  },
+  {
+   "at": "2026-10-10T16:08:12.747587Z",
+   "kind": "alert",
+   "title": "InventoryHighLatencyP95 firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:291edb6f2521956a1d8f2f49b1dd50f9",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T16:08:12.933413Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert InventoryHighLatencyP95 recurred within reopen window",
+    "correlation_id": "alertmanager:291edb6f2521956a1d8f2f49b1dd50f9"
+   }
+  },
+  {
+   "at": "2026-10-10T16:08:13.152093Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:291edb6f2521956a1d8f2f49b1dd50f9"
+   }
+  },
+  {
+   "at": "2026-10-10T16:08:13.152093Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:291edb6f2521956a1d8f2f49b1dd50f9"
+   }
+  },
+  {
+   "at": "2026-10-10T16:08:13.222268Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 NEEDS_HUMAN",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation abstained",
+    "correlation_id": "alertmanager:291edb6f2521956a1d8f2f49b1dd50f9"
+   }
+  },
+  {
+   "at": "2026-10-10T16:08:26.322317Z",
+   "kind": "transition",
+   "title": "NEEDS_HUMAN \u2192 RESOLVED",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "resolved by human: closing stale incident before scenario B",
+    "correlation_id": "api:45cb388714324a17"
+   }
+  },
+  {
+   "at": "2026-10-10T16:29:32.748652Z",
+   "kind": "alert",
+   "title": "InventoryHighLatencyP95 firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:452f1d1cde82f51128e40a3a87f074ed",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T16:29:32.854481Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert InventoryHighLatencyP95 recurred within reopen window",
+    "correlation_id": "alertmanager:452f1d1cde82f51128e40a3a87f074ed"
+   }
+  },
+  {
+   "at": "2026-10-10T16:29:33.073641Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:452f1d1cde82f51128e40a3a87f074ed"
+   }
+  },
+  {
+   "at": "2026-10-10T16:29:33.073641Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:452f1d1cde82f51128e40a3a87f074ed"
+   }
+  },
+  {
+   "at": "2026-10-10T16:29:33.121440Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 NEEDS_HUMAN",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation abstained",
+    "correlation_id": "alertmanager:452f1d1cde82f51128e40a3a87f074ed"
+   }
+  }
+ ]
+}

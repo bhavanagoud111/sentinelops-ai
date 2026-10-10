@@ -1,0 +1,162 @@
+{
+ "scenario": "E",
+ "started_at": "2026-10-10T16:00:00.539452+00:00",
+ "incident_id": "69b373b0-83c5-4109-8c40-ef4bfe8c7fb3",
+ "investigation": "escalated",
+ "top": [
+  "resource_saturation",
+  "worker"
+ ],
+ "proposal": null,
+ "diagnosis_correct": true,
+ "outcome_expected": false,
+ "runbook_expected": false,
+ "final_status": "NEEDS_HUMAN",
+ "timings_s": {
+  "fault injected": 4.1,
+  "incident open (69b373b0-83c5-4109-8c40-ef4bfe8c7fb3, NEEDS_HUMAN)": 193.9,
+  "investigation escalated": 193.9
+ },
+ "timeline": [
+  {
+   "at": "2026-10-10T15:47:12.743394Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:9b33a7f978417d5dbeb6e4eda436155e",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:12.841728Z",
+   "kind": "transition",
+   "title": "\u2205 \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert WorkerMemoryHigh firing",
+    "correlation_id": "alertmanager:9b33a7f978417d5dbeb6e4eda436155e"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:13.058593Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:9b33a7f978417d5dbeb6e4eda436155e"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:13.058593Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:9b33a7f978417d5dbeb6e4eda436155e"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:13.111579Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:9b33a7f978417d5dbeb6e4eda436155e"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:13.504447Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing restart_deployment (approved by anna.approver)",
+    "correlation_id": "8fcb56a0-434e-4271-bb07-95456ccaf421"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:15.767088Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "restart_deployment applied in 2.0s; verifying",
+    "correlation_id": "8fcb56a0-434e-4271-bb07-95456ccaf421"
+   }
+  },
+  {
+   "at": "2026-10-10T15:49:06.028097Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: metric.process_memory@worker: latest 636895232.0 below threshold 782260224.0; pods 1/1 ready, waiting=[]",
+    "correlation_id": "8fcb56a0-434e-4271-bb07-95456ccaf421"
+   }
+  },
+  {
+   "at": "2026-10-10T15:53:12.742318Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:03efc68754886cfdf8b778fff154c90d",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T16:03:12.743439Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:cf7d7c94b82ceed5a017b5b5ec72d621",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T16:03:12.787462Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert WorkerMemoryHigh recurred within reopen window",
+    "correlation_id": "alertmanager:cf7d7c94b82ceed5a017b5b5ec72d621"
+   }
+  },
+  {
+   "at": "2026-10-10T16:03:13.008870Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:cf7d7c94b82ceed5a017b5b5ec72d621"
+   }
+  },
+  {
+   "at": "2026-10-10T16:03:13.008870Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:cf7d7c94b82ceed5a017b5b5ec72d621"
+   }
+  },
+  {
+   "at": "2026-10-10T16:03:13.066525Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 NEEDS_HUMAN",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation escalated",
+    "correlation_id": "alertmanager:cf7d7c94b82ceed5a017b5b5ec72d621"
+   }
+  }
+ ]
+}

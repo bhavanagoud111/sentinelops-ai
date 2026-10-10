@@ -1,0 +1,943 @@
+{
+ "scenario": "E",
+ "started_at": "2026-10-10T18:08:27.209808+00:00",
+ "incident_id": "69b373b0-83c5-4109-8c40-ef4bfe8c7fb3",
+ "investigation": "proposed",
+ "top": [
+  "resource_saturation",
+  "worker"
+ ],
+ "proposal": {
+  "risk": "low",
+  "params": {
+   "namespace": "sentinelops-demo",
+   "deployment": "worker"
+  },
+  "rationale": "worker resident memory grew from 142 MiB to 539 MiB \u2014 consistent with a leak.",
+  "runbook_id": "restart_deployment",
+  "blast_radius": {
+   "risk": "low",
+   "namespace": "sentinelops-demo",
+   "dependents": [],
+   "deployment": "worker",
+   "criticality": "medium",
+   "current_revision": 40
+  },
+  "evidence_ids": [
+   "ev_3b0f2aea25b0eb74",
+   "ev_7128316df5d4e990"
+  ],
+  "hypothesis_id": "h1",
+  "target_revision": 40
+ },
+ "diagnosis_correct": true,
+ "outcome_expected": true,
+ "runbook_expected": true,
+ "execution": {
+  "id": "b3c4f482-c444-4db9-ac6b-91415e445c66",
+  "incident_id": "69b373b0-83c5-4109-8c40-ef4bfe8c7fb3",
+  "approval_id": "f96d27e5-13bb-4cd1-9f84-b00444dbb79f",
+  "runbook_id": "restart_deployment",
+  "target": "sentinelops-demo/worker",
+  "params": {
+   "namespace": "sentinelops-demo",
+   "deployment": "worker"
+  },
+  "status": "succeeded",
+  "requested_by": "oscar.operator",
+  "policy": {
+   "checks": [
+    {
+     "name": "mode_allows_writes",
+     "detail": "REMEDIATION_MODE=sandbox",
+     "passed": true
+    },
+    {
+     "name": "runbook_allowlisted",
+     "detail": "runbook 'restart_deployment'",
+     "passed": true
+    },
+    {
+     "name": "params_valid",
+     "detail": "parameters match the runbook schema",
+     "passed": true
+    },
+    {
+     "name": "namespace_allowed",
+     "detail": "namespace 'sentinelops-demo'",
+     "passed": true
+    },
+    {
+     "name": "deployment_allowed",
+     "detail": "deployment 'worker'",
+     "passed": true
+    },
+    {
+     "name": "approval_present",
+     "detail": "approval record found",
+     "passed": true
+    },
+    {
+     "name": "approval_approved",
+     "detail": "approval status 'approved'",
+     "passed": true
+    },
+    {
+     "name": "approval_not_expired",
+     "detail": "expires 2026-10-10T18:26:35.238106+00:00",
+     "passed": true
+    },
+    {
+     "name": "four_eyes",
+     "detail": "requested by 'oscar.operator', approved by 'anna.approver'",
+     "passed": true
+    },
+    {
+     "name": "approval_bound_to_action",
+     "detail": "approval hash matches incident, runbook, parameters and target revision",
+     "passed": true
+    },
+    {
+     "name": "incident_state",
+     "detail": "incident is REMEDIATING",
+     "passed": true
+    },
+    {
+     "name": "target_exists",
+     "detail": "deployment sentinelops-demo/worker",
+     "passed": true
+    },
+    {
+     "name": "no_revision_drift",
+     "detail": "live revision 40, approved against 40",
+     "passed": true
+    },
+    {
+     "name": "no_concurrent_action",
+     "detail": "0 other action(s) in flight on this target",
+     "passed": true
+    },
+    {
+     "name": "cooldown_elapsed",
+     "detail": "last success 2026-10-10T17:54:50.829779+00:00, cooldown 0:05:00",
+     "passed": true
+    }
+   ],
+   "allowed": true
+  },
+  "command_template": "kubectl rollout restart deployment/worker -n sentinelops-demo",
+  "before_state": {
+   "env": {
+    "OTEL_SERVICE_NAME": "worker",
+    "DEPLOYMENT_ENVIRONMENT": "local",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector:4318",
+    "OTEL_METRIC_EXPORT_INTERVAL": "5000",
+    "OTEL_SEMCONV_STABILITY_OPT_IN": "http"
+   },
+   "image": "sentinelops/demo-worker:dev",
+   "replicas": 1,
+   "revision": 40,
+   "generation": 40,
+   "ready_replicas": 1
+  },
+  "after_state": {
+   "env": {
+    "OTEL_SERVICE_NAME": "worker",
+    "DEPLOYMENT_ENVIRONMENT": "local",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector:4318",
+    "OTEL_METRIC_EXPORT_INTERVAL": "5000",
+    "OTEL_SEMCONV_STABILITY_OPT_IN": "http"
+   },
+   "image": "sentinelops/demo-worker:dev",
+   "replicas": 1,
+   "revision": 41,
+   "generation": 41,
+   "ready_replicas": 1,
+   "rollout_seconds": 2.0
+  },
+  "verification": {
+   "rounds": [
+    {
+     "at": "2026-10-10T18:12:07.575234+00:00",
+     "checks": [
+      "metric.process_memory@worker: latest 555397120.0 still above threshold 265586688.0",
+      "pods 1/1 ready, waiting=[]"
+     ],
+     "healthy": false,
+     "evidence_ids": [
+      "ev_c89004d17d6da37c",
+      "ev_04c2032b158ef2d4"
+     ]
+    },
+    {
+     "at": "2026-10-10T18:12:27.599523+00:00",
+     "checks": [
+      "metric.process_memory@worker: latest 555397120.0 still above threshold 344064000.0",
+      "pods 1/1 ready, waiting=[]"
+     ],
+     "healthy": false,
+     "evidence_ids": [
+      "ev_ab58240a17dedd85",
+      "ev_d9893632109e93ce"
+     ]
+    },
+    {
+     "at": "2026-10-10T18:12:47.624961+00:00",
+     "checks": [
+      "metric.process_memory@worker: latest 555397120.0 still above threshold 422535168.0",
+      "pods 1/1 ready, waiting=[]"
+     ],
+     "healthy": false,
+     "evidence_ids": [
+      "ev_e17eef38ee1fe9d5",
+      "ev_e667eda6f595c039"
+     ]
+    },
+    {
+     "at": "2026-10-10T18:13:07.644247+00:00",
+     "checks": [
+      "metric.process_memory@worker: latest 555397120.0 still above threshold 501000192.0",
+      "pods 1/1 ready, waiting=[]"
+     ],
+     "healthy": false,
+     "evidence_ids": [
+      "ev_1f3621c9550c0290",
+      "ev_096c54a5daa253a7"
+     ]
+    },
+    {
+     "at": "2026-10-10T18:13:27.661481+00:00",
+     "checks": [
+      "metric.process_memory@worker: latest 555397120.0 below threshold 579465216.0",
+      "pods 1/1 ready, waiting=[]"
+     ],
+     "healthy": true,
+     "evidence_ids": [
+      "ev_c05837e6c5756f5c",
+      "ev_16b45efca3851a05"
+     ]
+    },
+    {
+     "at": "2026-10-10T18:13:47.678789+00:00",
+     "checks": [
+      "metric.process_memory@worker: latest 555397120.0 below threshold 657942528.0",
+      "pods 1/1 ready, waiting=[]"
+     ],
+     "healthy": true,
+     "evidence_ids": [
+      "ev_0806fe06a9b9544a",
+      "ev_aec14c12432b6058"
+     ]
+    }
+   ],
+   "recovered": true,
+   "required_passes": 2
+  },
+  "error": null,
+  "created_at": "2026-10-10T18:11:35.255243Z",
+  "started_at": "2026-10-10T18:11:35.324887Z",
+  "finished_at": "2026-10-10T18:11:37.364289Z"
+ },
+ "final_status": "RESOLVED",
+ "timings_s": {
+  "fault injected": 1.1,
+  "incident open (69b373b0-83c5-4109-8c40-ef4bfe8c7fb3, AWAITING_APPROVAL)": 188.0,
+  "investigation proposed": 188.0,
+  "approval requested by oscar.operator (restart_deployment {'namespace': 'sentinelops-demo', 'deployment': 'worker'})": 188.0,
+  "approved by anna.approver": 188.0,
+  "execution requested (b3c4f482-c444-4db9-ac6b-91415e445c66)": 188.1,
+  "incident RESOLVED": 320.7
+ },
+ "timeline": [
+  {
+   "at": "2026-10-10T15:47:12.743394Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:9b33a7f978417d5dbeb6e4eda436155e",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:12.841728Z",
+   "kind": "transition",
+   "title": "\u2205 \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert WorkerMemoryHigh firing",
+    "correlation_id": "alertmanager:9b33a7f978417d5dbeb6e4eda436155e"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:13.058593Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:9b33a7f978417d5dbeb6e4eda436155e"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:13.058593Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:9b33a7f978417d5dbeb6e4eda436155e"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:13.111579Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:9b33a7f978417d5dbeb6e4eda436155e"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:13.504447Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing restart_deployment (approved by anna.approver)",
+    "correlation_id": "8fcb56a0-434e-4271-bb07-95456ccaf421"
+   }
+  },
+  {
+   "at": "2026-10-10T15:47:15.767088Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "restart_deployment applied in 2.0s; verifying",
+    "correlation_id": "8fcb56a0-434e-4271-bb07-95456ccaf421"
+   }
+  },
+  {
+   "at": "2026-10-10T15:49:06.028097Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: metric.process_memory@worker: latest 636895232.0 below threshold 782260224.0; pods 1/1 ready, waiting=[]",
+    "correlation_id": "8fcb56a0-434e-4271-bb07-95456ccaf421"
+   }
+  },
+  {
+   "at": "2026-10-10T15:53:12.742318Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:03efc68754886cfdf8b778fff154c90d",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T16:03:12.743439Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:cf7d7c94b82ceed5a017b5b5ec72d621",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T16:03:12.787462Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert WorkerMemoryHigh recurred within reopen window",
+    "correlation_id": "alertmanager:cf7d7c94b82ceed5a017b5b5ec72d621"
+   }
+  },
+  {
+   "at": "2026-10-10T16:03:13.008870Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:cf7d7c94b82ceed5a017b5b5ec72d621"
+   }
+  },
+  {
+   "at": "2026-10-10T16:03:13.008870Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:cf7d7c94b82ceed5a017b5b5ec72d621"
+   }
+  },
+  {
+   "at": "2026-10-10T16:03:13.066525Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 NEEDS_HUMAN",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation escalated",
+    "correlation_id": "alertmanager:cf7d7c94b82ceed5a017b5b5ec72d621"
+   }
+  },
+  {
+   "at": "2026-10-10T16:09:12.743362Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:c3f0a8e54d0034f57c022c7a93e792f9",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T16:33:36.093650Z",
+   "kind": "transition",
+   "title": "NEEDS_HUMAN \u2192 RESOLVED",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "resolved by human: closing stale incident before scenario E",
+    "correlation_id": "api:a035ee651b1742e5"
+   }
+  },
+  {
+   "at": "2026-10-10T16:36:42.746507Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:695a279bdc1c636bd0da5861f19d5881",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T16:36:42.891784Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert WorkerMemoryHigh recurred within reopen window",
+    "correlation_id": "alertmanager:695a279bdc1c636bd0da5861f19d5881"
+   }
+  },
+  {
+   "at": "2026-10-10T16:36:43.118350Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:695a279bdc1c636bd0da5861f19d5881"
+   }
+  },
+  {
+   "at": "2026-10-10T16:36:43.118350Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:695a279bdc1c636bd0da5861f19d5881"
+   }
+  },
+  {
+   "at": "2026-10-10T16:36:43.201730Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:695a279bdc1c636bd0da5861f19d5881"
+   }
+  },
+  {
+   "at": "2026-10-10T16:36:45.344464Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing restart_deployment (approved by anna.approver)",
+    "correlation_id": "d4ac3280-2f2a-4127-becf-48384697cc79"
+   }
+  },
+  {
+   "at": "2026-10-10T16:36:47.547685Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "restart_deployment applied in 2.0s; verifying",
+    "correlation_id": "d4ac3280-2f2a-4127-becf-48384697cc79"
+   }
+  },
+  {
+   "at": "2026-10-10T16:38:57.754208Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: metric.process_memory@worker: latest 554950656.0 below threshold 654108672.0; pods 1/1 ready, waiting=[]",
+    "correlation_id": "d4ac3280-2f2a-4127-becf-48384697cc79"
+   }
+  },
+  {
+   "at": "2026-10-10T16:42:42.748731Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:6b4da24b76a6246c3582d640640ae915",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T16:52:12.746833Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:5f97f2c3c67c732e11e1a6fb381e6422",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T16:52:12.831598Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert WorkerMemoryHigh recurred within reopen window",
+    "correlation_id": "alertmanager:5f97f2c3c67c732e11e1a6fb381e6422"
+   }
+  },
+  {
+   "at": "2026-10-10T16:52:13.056166Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:5f97f2c3c67c732e11e1a6fb381e6422"
+   }
+  },
+  {
+   "at": "2026-10-10T16:52:13.056166Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:5f97f2c3c67c732e11e1a6fb381e6422"
+   }
+  },
+  {
+   "at": "2026-10-10T16:52:13.139306Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:5f97f2c3c67c732e11e1a6fb381e6422"
+   }
+  },
+  {
+   "at": "2026-10-10T16:52:14.774074Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing restart_deployment (approved by anna.approver)",
+    "correlation_id": "2bb18da7-64d5-4a0c-986c-625cc75a5e33"
+   }
+  },
+  {
+   "at": "2026-10-10T16:52:16.997502Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "restart_deployment applied in 2.0s; verifying",
+    "correlation_id": "2bb18da7-64d5-4a0c-986c-625cc75a5e33"
+   }
+  },
+  {
+   "at": "2026-10-10T16:54:27.371434Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: metric.process_memory@worker: latest 531660800.0 below threshold 616783872.0; pods 1/1 ready, waiting=[]",
+    "correlation_id": "2bb18da7-64d5-4a0c-986c-625cc75a5e33"
+   }
+  },
+  {
+   "at": "2026-10-10T16:58:12.756438Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:374fb3ba04d82493e6efbf60dfd2a900",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T17:07:52.762892Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:bf4d393a6c0973d9adff6cbf522905de",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T17:07:53.013239Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert WorkerMemoryHigh recurred within reopen window",
+    "correlation_id": "alertmanager:bf4d393a6c0973d9adff6cbf522905de"
+   }
+  },
+  {
+   "at": "2026-10-10T17:07:53.237176Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:bf4d393a6c0973d9adff6cbf522905de"
+   }
+  },
+  {
+   "at": "2026-10-10T17:07:53.237176Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:bf4d393a6c0973d9adff6cbf522905de"
+   }
+  },
+  {
+   "at": "2026-10-10T17:07:53.433328Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:bf4d393a6c0973d9adff6cbf522905de"
+   }
+  },
+  {
+   "at": "2026-10-10T17:07:54.494621Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing restart_deployment (approved by anna.approver)",
+    "correlation_id": "7362e499-3d1f-484e-8115-a7597b1b2b15"
+   }
+  },
+  {
+   "at": "2026-10-10T17:08:00.802481Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "restart_deployment applied in 6.0s; verifying",
+    "correlation_id": "7362e499-3d1f-484e-8115-a7597b1b2b15"
+   }
+  },
+  {
+   "at": "2026-10-10T17:10:11.480087Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: metric.process_memory@worker: latest 542015488.0 below threshold 670365696.0; pods 1/1 ready, waiting=[]",
+    "correlation_id": "7362e499-3d1f-484e-8115-a7597b1b2b15"
+   }
+  },
+  {
+   "at": "2026-10-10T17:13:52.753706Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:561d3f35d47edf89e1be4f6510a55ec7",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T17:39:22.756298Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:c0665fee8d25edcccf97d6ff9ae00cbb",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T17:39:22.875197Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert WorkerMemoryHigh recurred within reopen window",
+    "correlation_id": "alertmanager:c0665fee8d25edcccf97d6ff9ae00cbb"
+   }
+  },
+  {
+   "at": "2026-10-10T17:39:23.095378Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:c0665fee8d25edcccf97d6ff9ae00cbb"
+   }
+  },
+  {
+   "at": "2026-10-10T17:39:23.095378Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:c0665fee8d25edcccf97d6ff9ae00cbb"
+   }
+  },
+  {
+   "at": "2026-10-10T17:39:23.211549Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:c0665fee8d25edcccf97d6ff9ae00cbb"
+   }
+  },
+  {
+   "at": "2026-10-10T17:39:24.649646Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing restart_deployment (approved by anna.approver)",
+    "correlation_id": "07b5e38a-917c-47b5-8156-e610745c5a5f"
+   }
+  },
+  {
+   "at": "2026-10-10T17:39:32.845318Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "restart_deployment applied in 8.0s; verifying",
+    "correlation_id": "07b5e38a-917c-47b5-8156-e610745c5a5f"
+   }
+  },
+  {
+   "at": "2026-10-10T17:41:43.122568Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: metric.process_memory@worker: latest 565620736.0 below threshold 693393408.0; pods 1/1 ready, waiting=[]",
+    "correlation_id": "07b5e38a-917c-47b5-8156-e610745c5a5f"
+   }
+  },
+  {
+   "at": "2026-10-10T17:45:22.763247Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:7307c60b21169eed6e665af4878e9797",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T17:54:42.762868Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:b5221bcae56de3606b01e916730b4515",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T17:54:42.875342Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert WorkerMemoryHigh recurred within reopen window",
+    "correlation_id": "alertmanager:b5221bcae56de3606b01e916730b4515"
+   }
+  },
+  {
+   "at": "2026-10-10T17:54:43.099287Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:b5221bcae56de3606b01e916730b4515"
+   }
+  },
+  {
+   "at": "2026-10-10T17:54:43.099287Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:b5221bcae56de3606b01e916730b4515"
+   }
+  },
+  {
+   "at": "2026-10-10T17:54:43.171573Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:b5221bcae56de3606b01e916730b4515"
+   }
+  },
+  {
+   "at": "2026-10-10T17:54:44.547970Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing restart_deployment (approved by anna.approver)",
+    "correlation_id": "69804fea-f598-4bff-8e19-08bf834f3f30"
+   }
+  },
+  {
+   "at": "2026-10-10T17:54:50.829779Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "restart_deployment applied in 6.0s; verifying",
+    "correlation_id": "69804fea-f598-4bff-8e19-08bf834f3f30"
+   }
+  },
+  {
+   "at": "2026-10-10T17:57:00.996457Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: metric.process_memory@worker: latest 565252096.0 below threshold 692834304.0; pods 1/1 ready, waiting=[]",
+    "correlation_id": "69804fea-f598-4bff-8e19-08bf834f3f30"
+   }
+  },
+  {
+   "at": "2026-10-10T18:00:42.768037Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:5ddaeba394a24e63816d788ba7726771",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T18:11:32.761566Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:57910ced1eae5114dae9526e4efdbe1c",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T18:11:32.799859Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert WorkerMemoryHigh recurred within reopen window",
+    "correlation_id": "alertmanager:57910ced1eae5114dae9526e4efdbe1c"
+   }
+  },
+  {
+   "at": "2026-10-10T18:11:33.021201Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:57910ced1eae5114dae9526e4efdbe1c"
+   }
+  },
+  {
+   "at": "2026-10-10T18:11:33.021201Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:57910ced1eae5114dae9526e4efdbe1c"
+   }
+  },
+  {
+   "at": "2026-10-10T18:11:33.077703Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:57910ced1eae5114dae9526e4efdbe1c"
+   }
+  },
+  {
+   "at": "2026-10-10T18:11:35.254956Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing restart_deployment (approved by anna.approver)",
+    "correlation_id": "b3c4f482-c444-4db9-ac6b-91415e445c66"
+   }
+  },
+  {
+   "at": "2026-10-10T18:11:37.364289Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "restart_deployment applied in 2.0s; verifying",
+    "correlation_id": "b3c4f482-c444-4db9-ac6b-91415e445c66"
+   }
+  },
+  {
+   "at": "2026-10-10T18:13:47.698892Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: metric.process_memory@worker: latest 555397120.0 below threshold 657942528.0; pods 1/1 ready, waiting=[]",
+    "correlation_id": "b3c4f482-c444-4db9-ac6b-91415e445c66"
+   }
+  }
+ ]
+}
