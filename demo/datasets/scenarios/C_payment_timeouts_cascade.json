@@ -1,0 +1,112 @@
+{
+  "description": "Payment simulator becomes slow; checkout retries amplify load and return 5xx. Checkout is the victim.",
+  "incident": {
+    "service": "checkout",
+    "alertname": "CheckoutHigh5xxRate",
+    "title": "checkout 5xx ratio above 5%",
+    "severity": "critical",
+    "first_seen": "2026-10-09T12:02:00+00:00"
+  },
+  "observations": {
+    "metric.error_ratio|checkout": {
+      "summary": "checkout 5xx ratio peak 42.0% (baseline 0.0%, onset 2026-10-09T12:01:15+00:00)",
+      "anomalous": true,
+      "signals": {
+        "peak": 0.42,
+        "baseline": 0.0,
+        "onset_at": "2026-10-09T12:01:15+00:00"
+      }
+    },
+    "metric.request_rate|checkout": {
+      "summary": "checkout request rate latest 6.3 req/s (baseline 6.4)",
+      "anomalous": false,
+      "signals": {
+        "latest": 6.3,
+        "baseline": 6.4
+      }
+    },
+    "logs.errors|checkout": {
+      "summary": "checkout: 150 error logs; most common: payment request timed out after 3 attempts",
+      "anomalous": true,
+      "signals": {
+        "total": 150,
+        "top_messages": [
+          {
+            "pattern": "payment request timed out after 3 attempts",
+            "example": "payment request timed out after 3 attempts",
+            "count": 150
+          }
+        ],
+        "sample_trace_ids": [
+          "4bf92f3577b34da6a3ce929d0e0e4736"
+        ]
+      }
+    },
+    "metric.dependency_calls|checkout": {
+      "summary": "checkout outbound calls: degraded=['payment']",
+      "anomalous": true,
+      "signals": {
+        "degraded_dependencies": [
+          "payment"
+        ],
+        "dependencies": {
+          "payment": {
+            "error_rate_peak": 2.1,
+            "p95_peak_s": 3.0,
+            "errors_anomalous": true,
+            "latency_anomalous": true
+          },
+          "inventory": {
+            "error_rate_peak": 0.0,
+            "p95_peak_s": 0.01,
+            "errors_anomalous": false,
+            "latency_anomalous": false
+          }
+        }
+      }
+    },
+    "metric.latency_p95|payment": {
+      "summary": "payment p95 latency peak 2400 ms (baseline 12 ms)",
+      "anomalous": true,
+      "signals": {
+        "peak": 2.4,
+        "baseline": 0.012
+      }
+    },
+    "k8s.pod_status|checkout": {
+      "summary": "checkout: 2/2 ready, restarts=0, waiting=[]",
+      "anomalous": false,
+      "signals": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 0,
+        "waiting_reasons": []
+      }
+    },
+    "k8s.pod_status|payment": {
+      "summary": "payment: 2/2 ready, restarts=0, waiting=[]",
+      "anomalous": false,
+      "signals": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 0,
+        "waiting_reasons": []
+      }
+    }
+  },
+  "expected": {
+    "cause_category": "dependency_failure",
+    "suspected_service": "payment",
+    "runbook_id": null,
+    "outcome": "escalated"
+  },
+  "service_graph": {
+    "checkout": [
+      "inventory",
+      "payment"
+    ],
+    "inventory": [],
+    "payment": [],
+    "worker": []
+  }
+}

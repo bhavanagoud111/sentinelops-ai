@@ -1,0 +1,78 @@
+{
+  "description": "A rollout with a corrupt INVENTORY_STOCK_SEED makes new inventory pods crash-loop.",
+  "incident": {
+    "service": "inventory",
+    "alertname": "DeploymentCrashLooping",
+    "title": "inventory pods crash-looping",
+    "severity": "critical",
+    "first_seen": "2026-10-09T12:02:00+00:00"
+  },
+  "observations": {
+    "k8s.pod_status|inventory": {
+      "summary": "inventory: 2/2 ready, restarts=7, waiting=['CrashLoopBackOff']",
+      "anomalous": true,
+      "signals": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 7,
+        "waiting_reasons": [
+          "CrashLoopBackOff"
+        ]
+      }
+    },
+    "k8s.rollouts|inventory": {
+      "summary": "inventory: revision 5, 1 rollout(s) in window; latest change: env INVENTORY_STOCK_SEED: default -> corrupt",
+      "anomalous": true,
+      "signals": {
+        "current_revision": 5,
+        "recent_changes": [
+          {
+            "revision": 5,
+            "created_at": "2026-10-09T12:00:40+00:00",
+            "change": "env INVENTORY_STOCK_SEED: default -> corrupt"
+          }
+        ]
+      }
+    },
+    "logs.errors|inventory": {
+      "summary": "inventory: 14 error logs; most common: startup failed: invalid stock seed 'corrupt'",
+      "anomalous": true,
+      "signals": {
+        "total": 14,
+        "top_messages": [
+          {
+            "pattern": "startup failed: invalid stock seed 'corrupt'",
+            "example": "startup failed: invalid stock seed 'corrupt'",
+            "count": 14
+          }
+        ],
+        "sample_trace_ids": [
+          "4bf92f3577b34da6a3ce929d0e0e4736"
+        ]
+      }
+    },
+    "metric.request_rate|inventory": {
+      "summary": "inventory request rate latest 6.3 req/s (baseline 6.4)",
+      "anomalous": false,
+      "signals": {
+        "latest": 6.3,
+        "baseline": 6.4
+      }
+    }
+  },
+  "expected": {
+    "cause_category": "crash_loop_rollout",
+    "suspected_service": "inventory",
+    "runbook_id": "rollback_deployment",
+    "outcome": "proposed"
+  },
+  "service_graph": {
+    "checkout": [
+      "inventory",
+      "payment"
+    ],
+    "inventory": [],
+    "payment": [],
+    "worker": []
+  }
+}

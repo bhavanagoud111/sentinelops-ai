@@ -17,7 +17,8 @@ ADRs: [`docs/adr`](docs/adr) · Threat model: [`docs/threat-model.md`](docs/thre
 | 0 | Repo, contracts, CI, ADRs, threat model | built — `make check` green locally; CI not yet run |
 | 1 | Demo services, OTel, Prometheus/Loki/Tempo/Grafana, alerts | built — exit gate verified locally 2026-10-09 (metric, log, trace, alert); scenario B alert also verified |
 | 2 | Gateway, outbox, Redpanda, correlator, Postgres, incidents API | built — exit gate verified locally: dedup, consumer replay, restart+full-topic replay, real alert → incident in 110 s |
-| 3–7 | Agents, remediation, UI, hardening, cloud | planned |
+| 3 | Bounded LangGraph investigation, evidence citations, critic, rules baseline + optional Claude | built — fixtures pass in mock mode; live investigation + crash-orphan recovery verified |
+| 4–7 | Remediation, UI, hardening, cloud | in progress |
 
 ## Quick start
 Prerequisites: [uv](https://docs.astral.sh/uv/), Docker (Desktop/OrbStack/Colima), `make`, `curl`.

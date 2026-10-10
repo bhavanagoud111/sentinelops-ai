@@ -1,0 +1,52 @@
+{
+  "description": "Alert fired but no evidence shows an anomaly (e.g. flapping rule). Must abstain.",
+  "incident": {
+    "service": "checkout",
+    "alertname": "CheckoutHigh5xxRate",
+    "title": "checkout 5xx ratio above 5%",
+    "severity": "critical",
+    "first_seen": "2026-10-09T12:02:00+00:00"
+  },
+  "observations": {
+    "metric.error_ratio|checkout": {
+      "summary": "checkout 5xx ratio peak 0.4% (baseline 0.0%)",
+      "anomalous": false,
+      "signals": {
+        "peak": 0.004
+      }
+    },
+    "metric.request_rate|checkout": {
+      "summary": "checkout request rate latest 6.3 req/s (baseline 6.4)",
+      "anomalous": false,
+      "signals": {
+        "latest": 6.3,
+        "baseline": 6.4
+      }
+    },
+    "k8s.pod_status|checkout": {
+      "summary": "checkout: 2/2 ready, restarts=0, waiting=[]",
+      "anomalous": false,
+      "signals": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 0,
+        "waiting_reasons": []
+      }
+    }
+  },
+  "expected": {
+    "cause_category": null,
+    "suspected_service": null,
+    "runbook_id": null,
+    "outcome": "abstained"
+  },
+  "service_graph": {
+    "checkout": [
+      "inventory",
+      "payment"
+    ],
+    "inventory": [],
+    "payment": [],
+    "worker": []
+  }
+}

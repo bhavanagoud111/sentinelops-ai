@@ -104,10 +104,13 @@ def alertmanager_webhook(
     *,
     service: str = "inventory",
     status: str = "firing",
-    starts_at: str = "2026-10-10T02:00:00Z",
+    starts_at: str | None = None,
     am_fingerprint: str | None = None,
     severity: str = "warning",
 ) -> dict[str, Any]:
+    from datetime import UTC, datetime
+
+    starts_at = starts_at or datetime.now(UTC).replace(microsecond=0).isoformat()
     return {
         "version": "4",
         "status": status,

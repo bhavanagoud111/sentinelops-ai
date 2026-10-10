@@ -38,7 +38,9 @@ the blueprint leaves open.
 | Correlator (ADR-010) | built | `services/correlator`, replay-safe via `processed_events` |
 | PostgreSQL + Alembic, hash-chained append-only audit | built | `packages/storage` |
 | Incidents REST API + JWT/RBAC (ADR-011) | built | `apps/api` |
-| Investigation agents | Phase 3 | |
+| Investigation agents (LangGraph, ADR-005/008) | built | `services/investigator`; rules provider default, Claude optional |
+| Read-only telemetry + Kubernetes clients | built | `packages/telemetry-clients` |
+| Runbook catalog (allowlist) | built | `packages/policy` |
 | Approvals, policy, executor (kind) | Phase 4 | |
 | React dashboard, SSE | Phase 5 | |
 

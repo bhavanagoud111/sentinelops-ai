@@ -179,6 +179,25 @@ services:
       migrate: { condition: service_completed_successfully }
       redpanda: { condition: service_healthy }
 
+  investigator:
+    <<: *platform-service
+    command: ["sentinel-investigator"]
+    environment:
+      <<: *platform-env
+      OTEL_SERVICE_NAME: sentinel-investigator
+      PROMETHEUS_URL: http://prometheus:9090
+      LOKI_URL: http://loki:3100
+      TEMPO_URL: http://tempo:3200
+      # rules (default, deterministic, free) | claude (needs ANTHROPIC_API_KEY)
+      SENTINEL_LLM_PROVIDER: ${SENTINEL_LLM_PROVIDER:-rules}
+      SENTINEL_LLM_MODEL: ${SENTINEL_LLM_MODEL:-claude-opus-5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AUTO_INVESTIGATE: "true"
+      INVESTIGATION_DEADLINE_S: "120"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redpanda: { condition: service_healthy }
+
   api:
     <<: *platform-service
     command: ["uvicorn", "--factory", "sentinel_api.app:build", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]

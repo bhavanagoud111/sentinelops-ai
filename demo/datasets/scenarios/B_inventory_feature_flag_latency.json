@@ -1,0 +1,84 @@
+{
+  "description": "Inventory p95 latency regression after FEATURE_NEW_STOCK_INDEX was enabled.",
+  "incident": {
+    "service": "inventory",
+    "alertname": "InventoryHighLatencyP95",
+    "title": "inventory p95 latency above 500ms",
+    "severity": "high",
+    "first_seen": "2026-10-09T12:02:00+00:00"
+  },
+  "observations": {
+    "metric.latency_p95|inventory": {
+      "summary": "inventory p95 latency peak 1310 ms (baseline 12 ms)",
+      "anomalous": true,
+      "signals": {
+        "peak": 1.31,
+        "baseline": 0.012
+      }
+    },
+    "metric.request_rate|inventory": {
+      "summary": "inventory request rate latest 6.3 req/s (baseline 6.4)",
+      "anomalous": false,
+      "signals": {
+        "latest": 6.3,
+        "baseline": 6.4
+      }
+    },
+    "k8s.rollouts|inventory": {
+      "summary": "inventory: revision 3, 1 rollout(s) in window; latest change: env FEATURE_NEW_STOCK_INDEX: off -> on",
+      "anomalous": true,
+      "signals": {
+        "current_revision": 3,
+        "recent_changes": [
+          {
+            "revision": 3,
+            "created_at": "2026-10-09T12:00:40+00:00",
+            "change": "env FEATURE_NEW_STOCK_INDEX: off -> on"
+          }
+        ]
+      }
+    },
+    "traces.slow|inventory": {
+      "summary": "inventory: 20 traces slower than 500 ms (max 1450 ms)",
+      "anomalous": true,
+      "signals": {
+        "count": 20,
+        "root_spans": [
+          {
+            "name": "POST /inventory/reserve",
+            "count": 14
+          }
+        ],
+        "max_ms": 1450
+      }
+    },
+    "k8s.pod_status|inventory": {
+      "summary": "inventory: 2/2 ready, restarts=0, waiting=[]",
+      "anomalous": false,
+      "signals": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 0,
+        "waiting_reasons": []
+      }
+    }
+  },
+  "expected": {
+    "cause_category": "feature_flag_regression",
+    "suspected_service": "inventory",
+    "runbook_id": "disable_feature_flag",
+    "runbook_params": {
+      "flag": "FEATURE_NEW_STOCK_INDEX"
+    },
+    "outcome": "proposed"
+  },
+  "service_graph": {
+    "checkout": [
+      "inventory",
+      "payment"
+    ],
+    "inventory": [],
+    "payment": [],
+    "worker": []
+  }
+}

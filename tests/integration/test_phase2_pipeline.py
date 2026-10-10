@@ -78,7 +78,8 @@ def test_duplicate_webhooks_create_one_incident(ingest_token: str, api: httpx.Cl
     assert sum(r["duplicates"] for r in results) == 4
     incidents = wait_for(lambda: _incidents_for(api, name))
     assert len(incidents) == 1
-    assert incidents[0]["status"] == "OPEN"
+    # The investigator may already have moved it along; it must simply not be closed.
+    assert incidents[0]["status"] != "RESOLVED"
     assert incidents[0]["alert_count"] == 1
 
 
@@ -105,7 +106,7 @@ def test_resolved_alert_clears_but_does_not_close(ingest_token: str, api: httpx.
     inc = wait_for(
         lambda: next((i for i in _incidents_for(api, name) if not i["alert_active"]), None)
     )
-    assert inc["status"] == "OPEN", "incident closes only via verification or a human"
+    assert inc["status"] != "RESOLVED", "incident closes only via verification or a human"
 
 
 def test_restart_and_full_replay_creates_no_duplicates(api: httpx.Client) -> None:

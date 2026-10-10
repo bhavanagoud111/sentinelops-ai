@@ -11,7 +11,13 @@ import sys
 from pathlib import Path
 
 from pydantic import BaseModel
-from sentinel_contracts import AlertEvent, Incident, IncidentEvent, IncidentTransition
+from sentinel_contracts import (
+    AlertEvent,
+    Incident,
+    IncidentEvent,
+    IncidentTransition,
+    InvestigationEvent,
+)
 
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "packages" / "contracts" / "schemas"
 MODELS: dict[str, type[BaseModel]] = {
@@ -19,6 +25,7 @@ MODELS: dict[str, type[BaseModel]] = {
     "incident.v1.json": Incident,
     "incident_transition.v1.json": IncidentTransition,
     "incident_event.v1.json": IncidentEvent,
+    "investigation_event.v1.json": InvestigationEvent,
 }
 
 

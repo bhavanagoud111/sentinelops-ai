@@ -1,0 +1,98 @@
+{
+  "description": "Checkout 5xx spike after a rollout set a malformed PAYMENT_PROVIDER_URL.",
+  "incident": {
+    "service": "checkout",
+    "alertname": "CheckoutHigh5xxRate",
+    "title": "checkout 5xx ratio above 5%",
+    "severity": "critical",
+    "first_seen": "2026-10-09T12:02:00+00:00"
+  },
+  "observations": {
+    "metric.error_ratio|checkout": {
+      "summary": "checkout 5xx ratio peak 100.0% (baseline 0.0%, onset 2026-10-09T12:01:15+00:00)",
+      "anomalous": true,
+      "signals": {
+        "peak": 1.0,
+        "baseline": 0.0,
+        "onset_at": "2026-10-09T12:01:15+00:00"
+      }
+    },
+    "metric.request_rate|checkout": {
+      "summary": "checkout request rate latest 6.3 req/s (baseline 6.4)",
+      "anomalous": false,
+      "signals": {
+        "latest": 6.3,
+        "baseline": 6.4
+      }
+    },
+    "logs.errors|checkout": {
+      "summary": "checkout: 150 error logs; most common: checkout failed: configuration error [ConfigError: invalid payment provider url 'payments.internal:::']",
+      "anomalous": true,
+      "signals": {
+        "total": 150,
+        "top_messages": [
+          {
+            "pattern": "checkout failed: configuration error [ConfigError: invalid payment provider url 'payments.internal:::']",
+            "example": "checkout failed: configuration error [ConfigError: invalid payment provider url 'payments.internal:::']",
+            "count": 150
+          }
+        ],
+        "sample_trace_ids": [
+          "4bf92f3577b34da6a3ce929d0e0e4736"
+        ]
+      }
+    },
+    "traces.errors|checkout": {
+      "summary": "checkout: 20 error traces; roots [POST /checkout]",
+      "anomalous": true,
+      "signals": {
+        "count": 20,
+        "root_spans": [
+          {
+            "name": "POST /checkout",
+            "count": 20
+          }
+        ]
+      }
+    },
+    "k8s.rollouts|checkout": {
+      "summary": "checkout: revision 3, 1 rollout(s) in window; latest change: env PAYMENT_PROVIDER_URL: http://payments.internal/v1 -> payments.internal:::",
+      "anomalous": true,
+      "signals": {
+        "current_revision": 3,
+        "recent_changes": [
+          {
+            "revision": 3,
+            "created_at": "2026-10-09T12:00:40+00:00",
+            "change": "env PAYMENT_PROVIDER_URL: http://payments.internal/v1 -> payments.internal:::"
+          }
+        ]
+      }
+    },
+    "k8s.pod_status|checkout": {
+      "summary": "checkout: 2/2 ready, restarts=0, waiting=[]",
+      "anomalous": false,
+      "signals": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 0,
+        "waiting_reasons": []
+      }
+    }
+  },
+  "expected": {
+    "cause_category": "bad_config_rollout",
+    "suspected_service": "checkout",
+    "runbook_id": "rollback_deployment",
+    "outcome": "proposed"
+  },
+  "service_graph": {
+    "checkout": [
+      "inventory",
+      "payment"
+    ],
+    "inventory": [],
+    "payment": [],
+    "worker": []
+  }
+}

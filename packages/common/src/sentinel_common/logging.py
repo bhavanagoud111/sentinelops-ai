@@ -53,3 +53,6 @@ def configure_logging(service_name: str, level: str = "INFO") -> None:
     root.setLevel(level.upper())
     # uvicorn's access log duplicates the OTel HTTP spans/metrics; keep it quiet.
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    # Per-request client logs (httpx, aiokafka) are noise next to spans and metrics.
+    for noisy in ("httpx", "aiokafka", "kubernetes.client.rest"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)

@@ -8,6 +8,7 @@ dependencies = [
     "sentinel-relay",
     "sentinel-correlator",
     "sentinel-api",
+    "sentinel-investigator",
 ]
 
 [tool.uv.sources]
@@ -15,6 +16,7 @@ sentinel-ingestion = { workspace = true }
 sentinel-relay = { workspace = true }
 sentinel-correlator = { workspace = true }
 sentinel-api = { workspace = true }
+sentinel-investigator = { workspace = true }
 
 [build-system]
 requires = ["hatchling>=1.27"]

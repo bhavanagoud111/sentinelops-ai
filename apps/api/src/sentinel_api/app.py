@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sentinel_api.auth import TokenService
 from sentinel_api.routes import auth as auth_routes
 from sentinel_api.routes import incidents as incident_routes
+from sentinel_api.routes import investigations as investigation_routes
 
 logger = logging.getLogger("sentinel_api")
 
@@ -47,6 +48,7 @@ def create_app(
 
     app.include_router(auth_routes.router)
     app.include_router(incident_routes.router)
+    app.include_router(investigation_routes.router)
     return app
 
 

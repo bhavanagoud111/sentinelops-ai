@@ -1,0 +1,45 @@
+{
+  "description": "Background worker leaks memory steadily.",
+  "incident": {
+    "service": "worker",
+    "alertname": "WorkerMemoryHigh",
+    "title": "worker resident memory above 300 MiB",
+    "severity": "high",
+    "first_seen": "2026-10-09T12:02:00+00:00"
+  },
+  "observations": {
+    "metric.process_memory|worker": {
+      "summary": "worker RSS peak 452 MiB (baseline 81 MiB)",
+      "anomalous": true,
+      "signals": {
+        "peak": 474000000,
+        "baseline": 85000000
+      }
+    },
+    "k8s.pod_status|worker": {
+      "summary": "worker: 1/1 ready, restarts=0, waiting=[]",
+      "anomalous": false,
+      "signals": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0,
+        "waiting_reasons": []
+      }
+    }
+  },
+  "expected": {
+    "cause_category": "resource_saturation",
+    "suspected_service": "worker",
+    "runbook_id": "restart_deployment",
+    "outcome": "proposed"
+  },
+  "service_graph": {
+    "checkout": [
+      "inventory",
+      "payment"
+    ],
+    "inventory": [],
+    "payment": [],
+    "worker": []
+  }
+}

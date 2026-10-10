@@ -1,0 +1,97 @@
+{
+  "additionalProperties": false,
+  "description": "Published to ``sentinel.investigations.v1`` when an investigation finishes.",
+  "properties": {
+    "correlation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Correlation Id",
+      "type": "string"
+    },
+    "event_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "incident_id": {
+      "format": "uuid",
+      "title": "Incident Id",
+      "type": "string"
+    },
+    "investigation_id": {
+      "format": "uuid",
+      "title": "Investigation Id",
+      "type": "string"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "outcome": {
+      "enum": [
+        "proposed",
+        "escalated",
+        "abstained",
+        "failed"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "proposal": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Proposal"
+    },
+    "provider": {
+      "title": "Provider",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    },
+    "top_hypothesis": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Top Hypothesis"
+    }
+  },
+  "required": [
+    "event_id",
+    "incident_id",
+    "investigation_id",
+    "outcome",
+    "provider",
+    "summary",
+    "correlation_id",
+    "occurred_at"
+  ],
+  "title": "InvestigationEvent",
+  "type": "object"
+}

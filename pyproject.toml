@@ -18,6 +18,9 @@ dependencies = [
     "sentinel-correlator",
     "sentinel-api",
     "sentinel-platform",
+    "sentinel-policy",
+    "sentinel-telemetry",
+    "sentinel-investigator",
 ]
 
 [dependency-groups]
@@ -46,6 +49,9 @@ members = [
     "services/correlator",
     "apps/api",
     "services/platform",
+    "packages/policy",
+    "packages/telemetry-clients",
+    "services/investigator",
 ]
 
 [tool.uv.sources]
@@ -62,6 +68,9 @@ sentinel-relay = { workspace = true }
 sentinel-correlator = { workspace = true }
 sentinel-api = { workspace = true }
 sentinel-platform = { workspace = true }
+sentinel-policy = { workspace = true }
+sentinel-telemetry = { workspace = true }
+sentinel-investigator = { workspace = true }
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
@@ -96,11 +105,14 @@ mypy_path = [
     "services/relay/src",
     "services/correlator/src",
     "apps/api/src",
+    "packages/policy/src",
+    "packages/telemetry-clients/src",
+    "services/investigator/src",
 ]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["opentelemetry.*", "aiokafka.*", "asyncpg.*"]
+module = ["opentelemetry.*", "aiokafka.*", "asyncpg.*", "kubernetes.*", "langgraph.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------- pytest

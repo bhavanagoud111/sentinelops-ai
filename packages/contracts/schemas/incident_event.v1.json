@@ -108,7 +108,8 @@
         "alert_attached",
         "alert_cleared",
         "reopened",
-        "status_changed"
+        "status_changed",
+        "investigation_requested"
       ],
       "title": "IncidentEventKind",
       "type": "string"

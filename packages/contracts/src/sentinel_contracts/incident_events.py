@@ -19,6 +19,7 @@ class IncidentEventKind(StrEnum):
     ALERT_CLEARED = "alert_cleared"
     REOPENED = "reopened"
     STATUS_CHANGED = "status_changed"
+    INVESTIGATION_REQUESTED = "investigation_requested"
 
 
 class IncidentEvent(BaseModel):
@@ -53,3 +54,21 @@ class IncidentEvent(BaseModel):
             correlation_id=correlation_id,
             occurred_at=occurred_at,
         )
+
+
+class InvestigationEvent(BaseModel):
+    """Published to ``sentinel.investigations.v1`` when an investigation finishes."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: Literal[1] = SCHEMA_VERSION
+    event_id: Identifier
+    incident_id: uuid.UUID
+    investigation_id: uuid.UUID
+    outcome: Literal["proposed", "escalated", "abstained", "failed"]
+    provider: str
+    summary: str
+    proposal: dict[str, object] | None = None
+    top_hypothesis: dict[str, object] | None = None
+    correlation_id: Identifier
+    occurred_at: AwareDatetime

@@ -11,7 +11,7 @@ from sentinel_contracts.events import (
     AlertStatus,
     Severity,
 )
-from sentinel_contracts.incident_events import IncidentEvent, IncidentEventKind
+from sentinel_contracts.incident_events import IncidentEvent, IncidentEventKind, InvestigationEvent
 from sentinel_contracts.incidents import (
     ALLOWED_TRANSITIONS,
     TERMINAL_STATUSES,
@@ -37,6 +37,7 @@ __all__ = [
     "IncidentStatus",
     "IncidentTransition",
     "InvalidTransitionError",
+    "InvestigationEvent",
     "Severity",
     "Topic",
     "can_transition",

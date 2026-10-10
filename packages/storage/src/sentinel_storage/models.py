@@ -163,3 +163,91 @@ class ProcessedEvent(Base):
     consumer: Mapped[str] = mapped_column(String(64), primary_key=True)
     event_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     processed_at: Mapped[datetime] = _now()
+
+
+# ---------------------------------------------------------------- Phase 3
+class InvestigationRow(Base):
+    __tablename__ = "investigations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    incident_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("incidents.id"), index=True)
+    status: Mapped[str] = mapped_column(String(16))  # running|proposed|escalated|abstained|failed
+    provider: Mapped[str] = mapped_column(String(64))
+    trigger: Mapped[str] = mapped_column(String(128))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    summary: Mapped[str] = mapped_column(Text, default="")
+    triage: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    steps: Mapped[list[Any]] = mapped_column(default=list)
+    proposal: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    usage: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    error: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        Index(
+            "uq_investigations_running_incident",
+            "incident_id",
+            unique=True,
+            postgresql_where=text("status = 'running'"),
+        ),
+    )
+
+
+class EvidenceRow(Base):
+    __tablename__ = "evidence"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # immutable evidence_id
+    incident_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("incidents.id"), index=True)
+    investigation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("investigations.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(64))
+    service: Mapped[str] = mapped_column(String(128))
+    source: Mapped[str] = mapped_column(String(32))
+    tool: Mapped[str] = mapped_column(String(64))
+    query_ref: Mapped[str] = mapped_column(Text)
+    range_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    range_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    content_hash: Mapped[str] = mapped_column(String(64))
+    summary: Mapped[str] = mapped_column(Text)
+    anomalous: Mapped[bool] = mapped_column()
+    signals: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _now()
+
+
+class HypothesisRow(Base):
+    __tablename__ = "hypotheses"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    incident_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("incidents.id"), index=True)
+    investigation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("investigations.id"), index=True)
+    key: Mapped[str] = mapped_column(String(16))
+    rank: Mapped[int] = mapped_column(Integer)
+    cause_category: Mapped[str] = mapped_column(String(64))
+    suspected_service: Mapped[str] = mapped_column(String(128))
+    description: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column()
+    adjusted_confidence: Mapped[float] = mapped_column()
+    verdict: Mapped[str] = mapped_column(String(16))
+    critic_reasons: Mapped[list[Any]] = mapped_column(default=list)
+    evidence_refs: Mapped[list[Any]] = mapped_column(default=list)
+    counterevidence_refs: Mapped[list[Any]] = mapped_column(default=list)
+    recommended_runbook_id: Mapped[str | None] = mapped_column(String(64))
+    runbook_params: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    uncertainty: Mapped[str] = mapped_column(Text, default="")
+    next_checks: Mapped[list[Any]] = mapped_column(default=list)
+    created_at: Mapped[datetime] = _now()
+
+
+class IdempotencyKey(Base):
+    """Stored responses for mutating API calls keyed by (principal, Idempotency-Key)."""
+
+    __tablename__ = "idempotency_keys"
+
+    principal: Mapped[str] = mapped_column(String(128), primary_key=True)
+    key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    route: Mapped[str] = mapped_column(String(256))
+    request_hash: Mapped[str] = mapped_column(String(64))
+    status_code: Mapped[int] = mapped_column(Integer)
+    response: Mapped[dict[str, Any]] = mapped_column()
+    created_at: Mapped[datetime] = _now()

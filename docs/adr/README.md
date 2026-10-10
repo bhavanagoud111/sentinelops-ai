@@ -9,6 +9,8 @@ Proposed, Accepted, Superseded by ADR-NNN.
 | [002](ADR-002-redpanda-local-broker.md) | Redpanda locally, Kafka API as the contract | Accepted |
 | [003](ADR-003-observability-stack.md) | OpenTelemetry + Prometheus + Loki + Tempo + Grafana | Accepted |
 | [004](ADR-004-postgres-transactional-outbox.md) | PostgreSQL as system of record with transactional outbox | Accepted |
+| [005](ADR-005-langgraph-bounded-agents.md) | LangGraph workflow with bounded, typed, read-only tools | Accepted |
+| [008](ADR-008-mock-llm-provider.md) | Deterministic rules provider by default; Claude optional | Accepted |
 | [007](ADR-007-compose-then-kind.md) | Docker Compose first, kind for Kubernetes workloads in Phase 4 | Accepted |
 | [010](ADR-010-correlation-policy.md) | Incident correlation key and reopen policy | Accepted |
 | [011](ADR-011-authn-authz.md) | Authentication and authorization | Accepted |

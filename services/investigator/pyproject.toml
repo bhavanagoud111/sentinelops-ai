@@ -1,0 +1,33 @@
+[project]
+name = "sentinel-investigator"
+version = "0.1.0"
+description = "Bounded LangGraph investigation agents with evidence citations"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "langgraph>=0.3",
+    "anthropic>=0.60",
+    "sentinel-contracts",
+    "sentinel-common",
+    "sentinel-storage",
+    "sentinel-messaging",
+    "sentinel-telemetry",
+    "sentinel-policy",
+]
+
+[project.scripts]
+sentinel-investigator = "sentinel_investigator.service:main"
+
+[tool.uv.sources]
+sentinel-contracts = { workspace = true }
+sentinel-common = { workspace = true }
+sentinel-storage = { workspace = true }
+sentinel-messaging = { workspace = true }
+sentinel-telemetry = { workspace = true }
+sentinel-policy = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentinel_investigator"]
