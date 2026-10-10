@@ -1,7 +1,8 @@
-"""Kubernetes client construction: kubeconfig file vs. in-cluster ServiceAccount."""
+"""Kubernetes clients (kubeconfig vs. in-cluster) and the live evidence they feed."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -61,3 +62,111 @@ def test_reader_from_env(
     monkeypatch.setenv("K8S_READER_KUBECONFIG", "in-cluster")
     assert kubernetes_reader_from_env() is not None
     assert len(incluster) == 1
+
+
+def _rs(created: str, *updates: tuple[str, str | None]) -> Any:
+    from types import SimpleNamespace
+
+    ts = datetime.fromisoformat
+    fields = [SimpleNamespace(time=ts(t), subresource=sub) for t, sub in updates]
+    return SimpleNamespace(
+        metadata=SimpleNamespace(creation_timestamp=ts(created), managed_fields=fields)
+    )
+
+
+def test_reused_replicaset_reports_reactivation_time() -> None:
+    # Re-deploying a template seen before reuses its ReplicaSet: created long ago,
+    # re-activated (spec update) just now. Status-subresource writes don't count.
+    rs = _rs(
+        "2026-10-10T15:32:25+00:00",
+        ("2026-10-10T16:05:18+00:00", None),
+        ("2026-10-10T16:09:00+00:00", "status"),
+    )
+    assert tk.rolled_out_at(rs, current=True) == datetime.fromisoformat("2026-10-10T16:05:18+00:00")
+
+
+def test_older_revision_keeps_creation_time() -> None:
+    # Its last spec update is the scale-down caused by the next rollout.
+    rs = _rs("2026-10-10T15:32:25+00:00", ("2026-10-10T16:05:18+00:00", None))
+    assert tk.rolled_out_at(rs, current=False) == datetime.fromisoformat(
+        "2026-10-10T15:32:25+00:00"
+    )
+
+
+def test_rolled_out_at_without_managed_fields() -> None:
+    rs = _rs("2026-10-10T15:32:25+00:00")
+    rs.metadata.managed_fields = None
+    assert tk.rolled_out_at(rs, current=True) == datetime.fromisoformat("2026-10-10T15:32:25+00:00")
+
+
+class _ReusedRollout:
+    """A rollout re-activated a ReplicaSet created before the investigation window."""
+
+    async def rollouts(self, namespace: str, deployment: str) -> dict[str, Any]:
+        return {
+            "deployment": deployment,
+            "current_revision": 12,
+            "revisions": [
+                {"revision": 11, "created_at": "2026-10-10T15:30:47+00:00", "change": "x"},
+                {
+                    "revision": 12,
+                    "created_at": "2026-10-10T15:32:25+00:00",
+                    "rolled_out_at": "2026-10-10T16:03:00+00:00",
+                    "change": "env PAYMENT_PROVIDER_URL: ok -> bad",
+                },
+            ],
+            "current_env": {},
+        }
+
+    async def pod_status(self, namespace: str, deployment: str) -> dict[str, Any]:
+        return {}
+
+
+async def test_toolbox_counts_reused_replicaset_as_recent_rollout() -> None:
+    import uuid
+
+    from sentinel_investigator.models import EvidenceKind
+    from sentinel_investigator.tools import LiveToolbox, ToolContext
+
+    box = LiveToolbox(None, None, None, _ReusedRollout())  # type: ignore[arg-type]
+    ctx = ToolContext(
+        incident_id=uuid.uuid4(),
+        scope=frozenset({"checkout"}),
+        start=datetime.fromisoformat("2026-10-10T15:45:00+00:00"),
+        end=datetime.fromisoformat("2026-10-10T16:05:00+00:00"),
+    )
+    ev = await box.collect(EvidenceKind.ROLLOUTS, "checkout", ctx)
+    assert ev.anomalous
+    assert [r["revision"] for r in ev.signals["recent_changes"]] == [12]
+
+
+class _LeakProm:
+    """Prometheus fake: one worker process leaking from 61 MiB to 531 MiB."""
+
+    def __init__(self) -> None:
+        self.queries: list[str] = []
+
+    async def query_range(self, q: str, *_: Any) -> list[dict[str, Any]]:
+        self.queries.append(q)
+        mib = [61, 61, 61, 61, 174, 323, 473, 531, 531]
+        return [{"values": [[1_760_000_000 + 60 * i, str(v * 2**20)] for i, v in enumerate(mib)]}]
+
+
+async def test_memory_evidence_takes_max_across_processes() -> None:
+    import uuid
+
+    from sentinel_investigator.models import EvidenceKind
+    from sentinel_investigator.tools import LiveToolbox, ToolContext
+
+    prom = _LeakProm()
+    box = LiveToolbox(prom, None, None)  # type: ignore[arg-type]
+    ctx = ToolContext(
+        incident_id=uuid.uuid4(),
+        scope=frozenset({"worker"}),
+        start=datetime.fromisoformat("2026-10-10T15:46:00+00:00"),
+        end=datetime.fromisoformat("2026-10-10T16:06:00+00:00"),
+    )
+    ev = await box.collect(EvidenceKind.PROCESS_MEMORY, "worker", ctx)
+    assert prom.queries == ['max(process_resident_memory_bytes{service_name="worker"})']
+    assert ev.anomalous
+    assert ev.signals["active"]

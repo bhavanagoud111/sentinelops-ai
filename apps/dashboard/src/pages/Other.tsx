@@ -170,14 +170,37 @@ export function Settings() {
   );
 }
 
+function TokenLogin() {
+  const { loginWithToken } = useAuth();
+  const [value, setValue] = useState("");
+  return (
+    <form className="stack" style={{ gap: 8 }} onSubmit={(e) => { e.preventDefault(); if (value.trim()) loginWithToken(value.trim()); }}>
+      <label className="small" htmlFor="token">Access token (ask your SentinelOps admin)</label>
+      <textarea id="token" className="mono small" rows={4} value={value} autoComplete="off" spellCheck={false}
+        onChange={(e) => setValue(e.target.value)} />
+      <button className="btn primary" type="submit" disabled={!value.trim()}>Sign in</button>
+    </form>
+  );
+}
+
 export function Login() {
+  const users = useQuery({ queryKey: ["dev-users"], queryFn: api.devUsers, retry: false });
   return (
     <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", padding: 16 }}>
       <div className="card stack" style={{ maxWidth: 440, width: "100%" }}>
         <h1>SentinelOps</h1>
-        <p className="sub">AI-assisted incident response. Pick a demo identity — roles decide what you can do
-          (operators request, approvers decide, only admins run experiments).</p>
-        <UserSwitcher />
+        {users.isError ? (
+          <>
+            <p className="sub">AI-assisted incident response. Sign in with the access token your administrator issued.</p>
+            <TokenLogin />
+          </>
+        ) : (
+          <>
+            <p className="sub">AI-assisted incident response. Pick a demo identity — roles decide what you can do
+              (operators request, approvers decide, only admins run experiments).</p>
+            <UserSwitcher />
+          </>
+        )}
       </div>
     </div>
   );

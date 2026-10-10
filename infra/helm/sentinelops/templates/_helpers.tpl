@@ -42,6 +42,14 @@ app.kubernetes.io/component: {{ .name }}
   value: {{ .Values.config.environment | quote }}
 - name: LOG_LEVEL
   value: {{ .Values.config.logLevel | quote }}
+- name: SENTINEL_TARGET_NAMESPACE
+  value: {{ .Values.policy.namespace | quote }}
+- name: SENTINEL_ALLOWED_DEPLOYMENTS
+  value: {{ join "," .Values.policy.deployments | quote }}
+- name: SENTINEL_ALLOWED_FLAGS
+  value: {{ join "," .Values.policy.featureFlags | quote }}
+- name: SENTINEL_SCALE_MAX
+  value: {{ .Values.policy.scaleMax | toString | quote }}
 {{- end -}}
 
 {{- define "sentinelops.secretEnvName" -}}

@@ -1,0 +1,40 @@
+# Example values for EKS (see docs/deploy-aws.md). Copy, fill the <...> fields.
+image:
+  platform: { repository: <account>.dkr.ecr.<region>.amazonaws.com/sentinelops/platform, tag: v0.1.0 }
+  dashboard: { repository: <account>.dkr.ecr.<region>.amazonaws.com/sentinelops/dashboard, tag: v0.1.0 }
+existingSecret: sentinelops
+
+config:
+  environment: production
+  kafkaBootstrap: redpanda.redpanda.svc.cluster.local:9092      # or the MSK bootstrap output
+  otlpEndpoint: http://otel-collector.observability.svc:4318
+  prometheusUrl: http://kube-prometheus-stack-prometheus.observability.svc:9090
+  alertmanagerUrl: http://kube-prometheus-stack-alertmanager.observability.svc:9093
+  lokiUrl: http://loki.observability.svc:3100
+  tempoUrl: http://tempo.observability.svc:3200
+  grafanaPublicUrl: https://grafana.example.com
+  remediationMode: recommend_only     # switch to sandbox only after a dry run period
+  llmProvider: rules                  # or claude (+ anthropic-api-key in the Secret)
+  authDevLogin: false
+
+policy:
+  namespace: shop                     # your workload namespace
+  deployments: [web, api, worker]     # the only Deployments SentinelOps may touch
+  featureFlags: []                    # FEATURE_* env flags it may switch off
+  scaleMax: 6
+
+ingress:
+  enabled: true
+  className: alb
+  host: sentinelops.example.com
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal          # keep it off the internet
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: <acm-certificate-arn>
+
+networkPolicy:
+  ingestionFrom:
+    - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: observability } }
+
+autoscaling: { enabled: true }

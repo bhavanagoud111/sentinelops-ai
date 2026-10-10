@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from sentinel_policy import TARGET_NAMESPACE
 from sentinel_telemetry import LokiClient, PrometheusClient, TelemetryError, TempoClient
 
 from sentinel_investigator import guards, signals
@@ -30,7 +31,7 @@ class ToolContext:
     scope: frozenset[str]
     start: datetime
     end: datetime
-    namespace: str = "sentinelops-demo"
+    namespace: str = TARGET_NAMESPACE
 
 
 class KubernetesReader(Protocol):
@@ -285,7 +286,9 @@ class LiveToolbox:
                 sig,
             )
         if kind is EvidenceKind.PROCESS_MEMORY:
-            q = f"process_resident_memory_bytes{{{sel}}}"
+            # max, not sum: one leaking process is the signal, and replaced pods' series
+            # linger ~5 min after exit, so summing them inflates the baseline.
+            q = f"max(process_resident_memory_bytes{{{sel}}})"
             prof = signals.series_profile(
                 await self.prom.query_range(q, ctx.start, ctx.end, 15),
                 abs_threshold=200 * 1024 * 1024,
@@ -350,7 +353,8 @@ class LiveToolbox:
                 recent = [
                     r
                     for r in data.get("revisions", [])
-                    if r.get("created_at") and r["created_at"] >= ctx.start.isoformat()
+                    if (at := r.get("rolled_out_at") or r.get("created_at"))
+                    and at >= ctx.start.isoformat()
                 ]
                 data["recent_changes"] = recent
                 data["anomalous"] = bool(recent)

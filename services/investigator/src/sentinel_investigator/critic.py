@@ -5,7 +5,7 @@ The critic is the anti-hallucination gate. It does not trust the provider:
 * at least one cited evidence item must be anomalous (else: unsupported → reject)
 * the category must be corroborated by the right *kind* of evidence (else: downgrade)
 * a recommended runbook must be allowlisted, parse against its parameter model,
-  and target the suspected service in the demo namespace (else: runbook stripped)
+  and target the suspected service in the target namespace (else: runbook stripped)
 
 The planner then proposes at most one remediation, only from an accepted
 hypothesis above the confidence threshold. Otherwise the investigation escalates

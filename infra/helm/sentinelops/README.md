@@ -12,7 +12,7 @@ pre-upgrade migration Job. Postgres, Kafka and the observability backends are
 | `config.remediationMode` | `recommend_only` | Writes need `sandbox` **and** an approved, policy-checked runbook. No autonomous mode exists. |
 | `config.authDevLogin` | `false` | Dev login takes a username only. |
 | `config.llmProvider` | `rules` | Deterministic, free; `claude` needs `anthropic-api-key`. |
-| RBAC | namespaced Roles in `targetNamespaces` | Mirrors `infra/kind/rbac.yaml`: reader = get/list/watch; executor = + `patch` deployments. No create/delete/exec/secrets, nothing cluster-scoped. |
+| RBAC | namespaced Roles in `policy.namespace` | Mirrors `infra/kind/rbac.yaml`: reader = get/list/watch; executor = + `patch` deployments. No create/delete/exec/secrets, nothing cluster-scoped. |
 | ServiceAccount tokens | mounted only on investigator, verifier (reader) and executor | Other pods get no API token. |
 | Pod security | `restricted` profile | non-root uid 10001, read-only root FS, all capabilities dropped, seccomp `RuntimeDefault`. |
 | NetworkPolicy | ingress default-deny | Only dashboard → API, configured frontends → dashboard/API, configured sources → ingestion. Egress allowlist is opt-in (`networkPolicy.egress`). |

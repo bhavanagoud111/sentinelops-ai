@@ -6,7 +6,7 @@
 Steps: close stale incidents for the scenario's alert (as a human would), inject the
 fault, wait for the incident and investigation, then (with --approve) request approval
 as the operator, approve as a *different* user, execute, and wait for verification.
-Prints a timeline with timings and writes a JSON record to docs/evaluation/runs/.
+Prints a timeline with timings and writes a JSON record to --out-dir (default docs/evaluation/runs/).
 """
 
 from __future__ import annotations
@@ -235,9 +235,7 @@ def main() -> int:
         timings_s={k: round(v - marks["start"], 1) for k, v in marks.items() if k != "start"},
         timeline=viewer.get(f"/api/v1/incidents/{iid}/timeline"),
     )
-    out = (
-        ROOT / "docs" / "evaluation" / "runs" / f"{sc.key}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.json"
-    )
+    out = Path(args.out_dir) / f"{sc.key}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(record, indent=1, default=str))
     print(f"record: {out}")

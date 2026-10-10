@@ -16,6 +16,9 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.51b0",
 ]
 
+[project.scripts]
+sentinel-issue-token = "sentinel_api.issue_token:main"
+
 [tool.uv.sources]
 sentinel-contracts = { workspace = true }
 sentinel-common = { workspace = true }

@@ -128,7 +128,7 @@ build: secrets ## Build images
 network:
 	@$(DOCKER) network inspect sentinelops >/dev/null 2>&1 || $(DOCKER) network create sentinelops >/dev/null
 
-kind-up: network ## Create/refresh the kind cluster with the demo workload
+kind-up: network tools ## Create/refresh the kind cluster with the demo workload
 	@scripts/kind-up.sh
 
 kind-down: ## Delete the kind cluster

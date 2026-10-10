@@ -41,9 +41,15 @@ config:
   authDevLogin: false
   corsOrigins: ""
 
-# Namespaces the reader/executor ServiceAccounts may act on. A Role + RoleBinding is
-# created in each; nothing is cluster-scoped. The namespaces must already exist.
-targetNamespaces: [sentinelops-demo]
+# What remediation may touch. Drives both the namespaced Roles (reader/executor) and the
+# allowlist every service enforces (SENTINEL_* env). Runbook types are fixed in code:
+# restart, rollback, scale (1..scaleMax), disable a FEATURE_* env flag.
+# The namespace must already exist; nothing is cluster-scoped.
+policy:
+  namespace: sentinelops-demo
+  deployments: [checkout, inventory, payment, worker]
+  featureFlags: [FEATURE_NEW_STOCK_INDEX, FEATURE_PAYMENT_RETRY_STORM]
+  scaleMax: 4
 
 podSecurityContext:
   runAsNonRoot: true

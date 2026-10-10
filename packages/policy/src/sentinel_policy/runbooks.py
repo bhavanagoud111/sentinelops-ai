@@ -8,13 +8,47 @@ or arbitrary commands. There is deliberately no "run command" runbook.
 
 from __future__ import annotations
 
+import os
+import re
 from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-DEMO_NAMESPACE = "sentinelops-demo"
-DEMO_DEPLOYMENTS = frozenset({"checkout", "inventory", "payment", "worker"})
+_K8S_NAME = re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
+_FLAG_NAME = re.compile(r"^FEATURE_[A-Z0-9_]{1,48}$")
+
+
+class PolicyConfigError(ValueError):
+    """Invalid allowlist configuration; services refuse to start rather than guess."""
+
+
+def _names(var: str, default: str, pattern: re.Pattern[str]) -> frozenset[str]:
+    raw = os.environ.get(var, default)
+    names = frozenset(n.strip() for n in raw.split(",") if n.strip())
+    bad = sorted(n for n in names if not pattern.fullmatch(n) or len(n) > 63)
+    if not names or bad:
+        raise PolicyConfigError(f"{var}: expected a comma-separated list of names, bad={bad}")
+    return names
+
+
+# Where remediation may act. Deployment-time configuration (the same values must be set
+# on the API, investigator and executor; the Helm chart does this from `policy.*`).
+# Defaults are the demo sandbox. Runbook *types* and parameter shapes stay fixed in code.
+_namespaces = _names("SENTINEL_TARGET_NAMESPACE", "sentinelops-demo", _K8S_NAME)
+if len(_namespaces) != 1:
+    raise PolicyConfigError("SENTINEL_TARGET_NAMESPACE must name exactly one namespace")
+TARGET_NAMESPACE: str = next(iter(_namespaces))
+TARGET_DEPLOYMENTS: frozenset[str] = _names(
+    "SENTINEL_ALLOWED_DEPLOYMENTS", "checkout,inventory,payment,worker", _K8S_NAME
+)
+SCALE_MAX: int = int(os.environ.get("SENTINEL_SCALE_MAX", "4"))
+if not 1 <= SCALE_MAX <= 10:
+    raise PolicyConfigError("SENTINEL_SCALE_MAX must be between 1 and 10")
+
+# Backwards-compatible names used across the codebase.
+DEMO_NAMESPACE = TARGET_NAMESPACE
+DEMO_DEPLOYMENTS = TARGET_DEPLOYMENTS
 
 K8sName = Annotated[
     str, StringConstraints(pattern=r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", max_length=63)
@@ -111,13 +145,13 @@ CATALOG: dict[RunbookId, Runbook] = {
             params_model=ScaleParams,
             allowed_namespaces=frozenset({DEMO_NAMESPACE}),
             allowed_deployments=DEMO_DEPLOYMENTS,
-            scale_bounds=(1, 4),
+            scale_bounds=(1, SCALE_MAX),
         ),
         Runbook(
             id=RunbookId.DISABLE_FEATURE_FLAG,
             title="Disable feature flag",
-            description="Set an allowlisted FEATURE_* environment flag to 'off' on a demo "
-            "deployment (triggers a rolling update).",
+            description="Set an allowlisted FEATURE_* environment flag to 'off' on an "
+            "allowlisted deployment (triggers a rolling update).",
             risk=RiskLevel.LOW,
             params_model=DisableFlagParams,
             allowed_namespaces=frozenset({DEMO_NAMESPACE}),
@@ -126,7 +160,9 @@ CATALOG: dict[RunbookId, Runbook] = {
     )
 }
 
-ALLOWED_FLAGS = frozenset({"FEATURE_NEW_STOCK_INDEX", "FEATURE_PAYMENT_RETRY_STORM"})
+ALLOWED_FLAGS: frozenset[str] = _names(
+    "SENTINEL_ALLOWED_FLAGS", "FEATURE_NEW_STOCK_INDEX,FEATURE_PAYMENT_RETRY_STORM", _FLAG_NAME
+)
 
 
 def parse_params(runbook_id: str, raw: dict[str, object]) -> RunbookParams:

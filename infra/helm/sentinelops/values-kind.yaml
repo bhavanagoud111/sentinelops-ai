@@ -16,7 +16,6 @@ config:
   alertmanagerUrl: http://alertmanager:9093
   grafanaPublicUrl: http://127.0.0.1:13000
   authDevLogin: true
-targetNamespaces: [sentinelops-demo]
 components:
   api: { replicas: 1 }
   ingestion: { replicas: 1 }

@@ -9,6 +9,8 @@ import { api, getToken, setToken, type Me } from "./api";
 interface AuthState {
   me: Me | null;
   login: (username: string) => Promise<void>;
+  /** Production sign-in: a token minted with `sentinel-issue-token`; /auth/me verifies it. */
+  loginWithToken: (token: string) => void;
   logout: () => void;
   can: (permission: string) => boolean;
 }
@@ -27,13 +29,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTok(res.access_token);
     qc.clear();
   }, [qc]);
+  const loginWithToken = useCallback((t: string) => {
+    setToken(t);
+    setTok(t);
+    qc.clear();
+  }, [qc]);
   const logout = useCallback(() => { setToken(null); setTok(null); qc.clear(); }, [qc]);
   const value = useMemo<AuthState>(() => ({
     me: me.data ?? null,
     login,
+    loginWithToken,
     logout,
     can: (p) => !!me.data?.permissions.includes(p),
-  }), [me.data, login, logout]);
+  }), [me.data, login, loginWithToken, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

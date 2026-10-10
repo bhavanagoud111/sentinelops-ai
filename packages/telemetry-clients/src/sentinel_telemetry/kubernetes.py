@@ -56,6 +56,26 @@ def describe_change(prev: Any | None, cur: Any) -> str:
     return "; ".join(parts) or "pod template annotations only (e.g. restart)"
 
 
+def rolled_out_at(rs: Any, *, current: bool) -> datetime | None:
+    """When this ReplicaSet's revision went live.
+
+    Rolling out a pod template seen before reuses its old ReplicaSet (only the revision
+    annotation is bumped), so ``creation_timestamp`` can predate the rollout by hours.
+    For the current revision, the controller's last spec update (scale-up, revision
+    bump) is the activation time. Older revisions keep their creation time: their last
+    update is the scale-down caused by the *next* rollout.
+    """
+    created: datetime | None = rs.metadata.creation_timestamp
+    if not current:
+        return created
+    updates = [
+        mf.time
+        for mf in rs.metadata.managed_fields or []
+        if mf.time is not None and not mf.subresource
+    ]
+    return max([t for t in (created, *updates) if t is not None], default=None)
+
+
 class KubernetesReadClient:
     def __init__(self, api_client: Any) -> None:
         # The generated models are Optional-heavy; we treat API objects as Any and
@@ -83,12 +103,14 @@ class KubernetesReadClient:
         dep, rss = self._replicasets(namespace, deployment)
         revisions = []
         prev = None
-        for rs in rss:
+        for i, rs in enumerate(rss):
             created: datetime = rs.metadata.creation_timestamp
+            rolled = rolled_out_at(rs, current=i == len(rss) - 1)
             revisions.append(
                 {
                     "revision": int((rs.metadata.annotations or {}).get(REVISION, "0")),
                     "created_at": created.isoformat() if created else None,
+                    "rolled_out_at": rolled.isoformat() if rolled else None,
                     "image": _image(rs.spec.template),
                     "replicas": rs.status.replicas or 0,
                     "change": describe_change(prev, rs),

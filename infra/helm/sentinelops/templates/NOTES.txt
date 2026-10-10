@@ -2,7 +2,7 @@ SentinelOps {{ .Chart.AppVersion }} installed in namespace {{ .Release.Namespace
 
   Remediation mode : {{ .Values.config.remediationMode }}
   Investigator     : {{ .Values.config.llmProvider }}
-  Acts on          : {{ join ", " .Values.targetNamespaces }} (namespaced Roles only)
+  Acts on          : namespace {{ .Values.policy.namespace }}, deployments {{ join ", " .Values.policy.deployments }}
 {{- if .Values.config.authDevLogin }}
 
   WARNING: authDevLogin=true lets anyone pick a username and role. Sandbox only.
