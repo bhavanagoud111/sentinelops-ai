@@ -32,12 +32,18 @@ def _iso(ts: float) -> str:
 
 
 def series_profile(
-    result: list[dict[str, Any]], *, abs_threshold: float, rel_factor: float = 3.0
+    result: list[dict[str, Any]],
+    *,
+    abs_threshold: float,
+    rel_factor: float = 3.0,
+    robust_baseline: bool = True,
 ) -> dict[str, Any]:
     """Peak vs. baseline profile of a single (summed) series.
 
-    baseline = median of the first quarter of the window; onset = first point that
-    exceeds max(abs_threshold, baseline * rel_factor).
+    baseline = median of the first quarter of the window, or the whole-window median
+    if lower (``robust_baseline``): an earlier episode of the same alert at the start
+    of the lookback must not become the baseline the current one is compared to.
+    onset = first point that exceeds max(abs_threshold, baseline * rel_factor).
     """
     pts = _points(result)
     if not pts:
@@ -45,6 +51,8 @@ def series_profile(
     values = [v for _, v in pts]
     head = sorted(values[: max(1, len(values) // 4)])
     baseline = head[len(head) // 2]
+    if robust_baseline:
+        baseline = min(baseline, sorted(values)[len(values) // 2])
     peak_ts, peak = max(pts, key=lambda p: p[1])
     threshold = max(abs_threshold, baseline * rel_factor)
     onset = next((ts for ts, v in pts if v > threshold), None)
@@ -65,7 +73,9 @@ def series_profile(
 
 def drop_profile(result: list[dict[str, Any]]) -> dict[str, Any]:
     """Request-rate profile: anomalous when traffic drops by more than half."""
-    prof = series_profile(result, abs_threshold=float("inf"))
+    # A drop is judged against the start of the window: a whole-window median would
+    # already include the drop.
+    prof = series_profile(result, abs_threshold=float("inf"), robust_baseline=False)
     if prof["points"] == 0:
         return prof
     base = prof["baseline"] or 0.0

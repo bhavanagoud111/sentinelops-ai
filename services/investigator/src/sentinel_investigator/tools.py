@@ -261,6 +261,10 @@ class LiveToolbox:
                         "p95_baseline_s": latency.get(d, {}).get("baseline"),
                         "errors_anomalous": errors.get(d, {}).get("anomalous", False),
                         "latency_anomalous": latency.get(d, {}).get("anomalous", False),
+                        # Still degraded at the end of the window (per dependency).
+                        "active": bool(
+                            errors.get(d, {}).get("active") or latency.get(d, {}).get("active")
+                        ),
                     }
                     for d in deps
                 }
@@ -272,9 +276,7 @@ class LiveToolbox:
             ]
             sig["anomalous"] = bool(bad)
             sig["degraded_dependencies"] = bad
-            sig["active"] = any(
-                errors.get(d, {}).get("active") or latency.get(d, {}).get("active") for d in bad
-            )
+            sig["active"] = any(sig["dependencies"][d]["active"] for d in bad)
             return _ev(
                 ctx,
                 kind,

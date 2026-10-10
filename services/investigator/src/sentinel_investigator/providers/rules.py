@@ -71,7 +71,7 @@ def _top_log_text(e: Evidence | None) -> str:
 def _recent_change_text(e: Evidence | None) -> str:
     if not e:
         return ""
-    return " ".join(str(c.get("change", "")) for c in e.signals.get("recent_changes", []))
+    return "; ".join(str(c.get("change", "")) for c in e.signals.get("recent_changes", []))
 
 
 class RulesProvider:
@@ -188,9 +188,13 @@ class RulesProvider:
                 dep_lat = idx.anomalous(K.LATENCY_P95, dep_svc)
                 dep_err = idx.anomalous(K.ERROR_RATIO, dep_svc)
                 timeouts = bool(_TIMEOUT_WORDS.search(_top_log_text(logs)))
+                # Recency per dependency: a dependency that already recovered (e.g. an
+                # earlier incident in the lookback) must not tie with one failing now.
+                dep_info = deps.signals.get("dependencies", {}).get(dep, {})
+                still_bad = dep_info.get("active", True) and deps.signals.get("active", True)
                 conf = (
                     0.55 + (0.2 if (dep_lat or dep_err) else 0.0) + (0.1 if timeouts else 0.0)
-                ) * _recency(deps)
+                ) * (1.0 if still_bad else 0.6)
                 out.append(
                     self._h(
                         CauseCategory.DEPENDENCY_FAILURE,

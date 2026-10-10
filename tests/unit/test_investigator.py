@@ -285,6 +285,21 @@ def test_series_profile_marks_recovered_spike_inactive() -> None:
     assert not prof["active"]
 
 
+def test_series_profile_earlier_episode_does_not_become_baseline() -> None:
+    # Recurrence of the same alert: the previous spike sits in the first quarter of the
+    # lookback window. The current spike must still be anomalous and active.
+    values = [2.4] * 6 + [0.0] * 14 + [2.4] * 4
+    prof = signals.series_profile(_matrix(values), abs_threshold=0.5)
+    assert prof["baseline"] == 0.0
+    assert prof["anomalous"]
+    assert prof["active"]
+
+
+def test_drop_profile_keeps_window_start_baseline() -> None:
+    prof = signals.drop_profile(_matrix([10.0] * 4 + [1.0] * 12))
+    assert prof["anomalous"]
+
+
 def test_series_profile_flat_is_not_anomalous() -> None:
     assert not signals.series_profile(_matrix([0.01] * 20), abs_threshold=0.05)["anomalous"]
 
@@ -399,3 +414,30 @@ async def test_reverted_flag_is_not_blamed() -> None:
         tmp.unlink()
     assert all(h.cause_category.value != "feature_flag_regression" for h in result.hypotheses)
     assert result.proposal is None
+
+
+async def test_recovered_dependency_does_not_tie_with_failing_one() -> None:
+    # Scenario C right after an inventory incident: both dependencies look degraded in
+    # the lookback window, but only payment is still failing at the end of it.
+    import copy
+    import json
+
+    from sentinel_investigator.evaluation import evaluate
+    from sentinel_investigator.providers.rules import RulesProvider
+
+    raw = json.loads((FIXTURES / "C_payment_timeouts_cascade.json").read_text())
+    obs = raw["observations"]
+    deps = obs["metric.dependency_calls|checkout"]["signals"]
+    deps["degraded_dependencies"] = ["inventory", "payment"]
+    deps["dependencies"]["inventory"].update(latency_anomalous=True, active=False)
+    deps["dependencies"]["payment"]["active"] = True
+    obs["metric.latency_p95|inventory"] = copy.deepcopy(obs["metric.latency_p95|payment"])
+    tmp = FIXTURES.parent / "_tmp_recovered_dependency.json"
+    try:
+        tmp.write_text(json.dumps(raw))
+        _, result = await evaluate(tmp, RulesProvider())
+    finally:
+        tmp.unlink()
+    by_svc = {h.suspected_service: h.confidence for h in result.hypotheses}
+    assert result.hypotheses[0].suspected_service == "payment"
+    assert by_svc["inventory"] < by_svc["payment"]
