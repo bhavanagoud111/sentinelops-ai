@@ -1,0 +1,36 @@
+# SentinelOps watching itself (spec section 16).
+groups:
+  - name: sentinelops.platform
+    rules:
+      - alert: OutboxBacklogHigh
+        expr: max(sentinel_outbox_backlog) > 100
+        for: 2m
+        labels: { severity: high, service: sentinel-relay }
+        annotations:
+          summary: "outbox backlog above 100 rows"
+          description: "Events are committed but not reaching Kafka ({{ $value }} unpublished)."
+      - alert: ConsumerLagHigh
+        expr: max by (redpanda_group) (redpanda_kafka_consumer_group_lag_max{redpanda_group=~"sentinel-.*"}) > 50
+        for: 2m
+        labels: { severity: high, service: sentinelops }
+        annotations:
+          summary: "{{ $labels.redpanda_group }} is lagging"
+          description: "Consumer group lag {{ $value }} messages."
+      - alert: MessagesDeadLettered
+        expr: sum(increase(sentinel_messages_consumed_total{outcome="dead_lettered"}[10m])) > 0
+        labels: { severity: warning, service: sentinelops }
+        annotations:
+          summary: "messages were dead-lettered"
+          description: "Inspect *.dlq topics; replay after fixing the cause."
+      - alert: InvestigationsFailing
+        expr: sum(increase(sentinel_investigations_total{outcome="failed"}[15m])) >= 3
+        labels: { severity: warning, service: sentinel-investigator }
+        annotations:
+          summary: "investigations are failing"
+          description: "{{ $value }} failed investigations in 15 minutes (backend or model outage?)."
+      - alert: RemediationBlockedByPolicy
+        expr: sum(increase(sentinel_actions_total{outcome="blocked"}[30m])) > 0
+        labels: { severity: info, service: sentinel-executor }
+        annotations:
+          summary: "an approved action was blocked by policy"
+          description: "Review the execution's policy checks (drift, expiry, cooldown…)."

@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * *" # nightly full end-to-end run
 
 permissions:
   contents: read
@@ -31,18 +34,68 @@ jobs:
         run: uv run --frozen ruff check . && uv run --frozen ruff format --check .
       - name: typecheck
         run: uv run --frozen mypy packages demo services apps tests scripts
-      - name: unit tests
+      - name: unit + security + fixture-evaluation tests
         run: uv run --frozen pytest
       - name: contract schema drift
         run: uv run --frozen python scripts/export_schemas.py --check
+
+  # Database-backed integration tests: storage invariants and the Phase 4 policy gate.
+  db-integration:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_USER: sentinel
+          POSTGRES_PASSWORD: sentinel
+          POSTGRES_DB: sentinelops
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sentinel" --health-interval 5s --health-timeout 3s
+          --health-retries 20
+    env:
+      POSTGRES_PORT: "5432"
+      POSTGRES_PASSWORD: sentinel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv python install 3.12 && uv sync --frozen
+      - run: >
+          uv run --frozen pytest -m integration -o addopts="-ra --strict-markers"
+          tests/integration/test_storage.py tests/integration/test_phase4_executor.py
+
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/dashboard/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+      - run: npx vite build
 
   stack-config:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: placeholder secrets for config validation
+        run: |
+          mkdir -p .cache/secrets .cache/kube
+          for s in ingest_token jwt_secret faultinjector_token; do openssl rand -hex 32 > .cache/secrets/$s; done
+          for k in reader executor chaos; do echo "{}" > .cache/kube/$k.kubeconfig; done
       - name: compose config
         run: docker compose -f infra/compose/docker-compose.yml config --quiet
-      - name: prometheus rules
+      - name: prometheus config + rules
         run: >
           docker run --rm -v "$PWD/infra/observability/prometheus:/etc/prometheus:ro"
           --entrypoint promtool prom/prometheus:v3.15.0
@@ -57,20 +110,32 @@ jobs:
           docker run --rm -v "$PWD/infra/observability/otel-collector:/cfg:ro"
           otel/opentelemetry-collector-contrib:0.162.0
           validate --config=/cfg/config.yaml
+      - name: kubernetes manifests (client-side schema)
+        run: |
+          make tools
+          for f in infra/kind/rbac.yaml infra/kind/kube-state-metrics.yaml infra/kind/workloads.yaml; do
+            .cache/bin/kubectl apply --dry-run=client --validate=false -f "$f" >/dev/null
+          done
 
-  # Phase 1 exit gate end-to-end. Takes ~5 minutes.
-  telemetry-e2e:
+  # Full stack on kind: scenario A end to end + all live integration/security tests.
+  # Heavy (~15 min), so nightly and on demand only.
+  e2e:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
-    needs: [python, stack-config]
+    needs: [python, db-integration, frontend, stack-config]
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv python install 3.12 && uv sync --frozen
-      - run: docker compose -f infra/compose/docker-compose.yml up -d --build --wait
-      - run: uv run --frozen pytest -m integration -o addopts="-ra --strict-markers"
+      - run: cp .env.example .env && make tools && make up
+      - run: uv run --frozen python -u scripts/run_scenario.py A --approve
+      - run: >
+          uv run --frozen pytest -m integration -o addopts="-ra --strict-markers"
+          tests/integration tests/security --deselect tests/integration/test_phase1_telemetry.py
       - if: failure()
         run: docker compose -f infra/compose/docker-compose.yml logs --tail=200
       - if: always()
-        run: docker compose -f infra/compose/docker-compose.yml down -v
+        run: make destroy

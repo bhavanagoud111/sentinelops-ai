@@ -127,6 +127,7 @@ def main() -> int:
     ap.add_argument("scenario", choices=sorted(SCENARIOS))
     ap.add_argument("--approve", action="store_true", help="approve and execute the proposal")
     ap.add_argument("--no-reset", action="store_true")
+    ap.add_argument("--out-dir", default=str(ROOT / "docs" / "evaluation" / "runs"))
     args = ap.parse_args()
     sc = SCENARIOS[args.scenario]
     viewer, operator, approver = Api("vera.viewer"), Api("oscar.operator"), Api("anna.approver")
@@ -239,7 +240,7 @@ def main() -> int:
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(record, indent=1, default=str))
-    print(f"record: {out.relative_to(ROOT)}")
+    print(f"record: {out}")
     if not args.no_reset:
         subprocess.run([str(ROOT / "scripts" / "inject-fault.sh"), "reset"], check=False)
     success = (

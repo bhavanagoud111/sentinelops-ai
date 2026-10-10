@@ -45,3 +45,9 @@ scrape_configs:
     honor_labels: true
     static_configs:
       - targets: ["sentinelops-control-plane:30080"]
+
+  # Redpanda broker metrics (consumer-group lag, throughput).
+  - job_name: redpanda
+    metrics_path: /public_metrics
+    static_configs:
+      - targets: ["redpanda:9644"]

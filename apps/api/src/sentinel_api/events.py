@@ -12,7 +12,6 @@ import asyncio
 import contextlib
 import json
 import logging
-import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -88,9 +87,11 @@ async def consume(broadcaster: Broadcaster, bootstrap: str, stop: asyncio.Event)
         consumer = AIOKafkaConsumer(
             *[t.value for t in STREAM_TOPICS],
             bootstrap_servers=bootstrap,
-            group_id=f"sentinel-api-sse-{uuid.uuid4().hex[:8]}",
+            # No consumer group: every API process reads everything from "latest" and keeps
+            # no committed offsets (avoids leaving orphaned groups behind on restarts).
+            group_id=None,
             auto_offset_reset="latest",
-            enable_auto_commit=True,
+            enable_auto_commit=False,
         )
         try:
             await consumer.start()

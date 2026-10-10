@@ -141,6 +141,22 @@ services:
     restart: unless-stopped
     networks: [sentinelops]
 
+  redpanda-init:
+    image: redpandadata/redpanda:v26.1.18
+    entrypoint: ["rpk"]
+    command:
+      - cluster
+      - config
+      - set
+      - enable_consumer_group_metrics
+      - '["group","partition","consumer_lag"]'
+      - -X
+      - admin.hosts=redpanda:9644
+    restart: "no"
+    networks: [sentinelops]
+    depends_on:
+      redpanda: { condition: service_healthy }
+
   migrate:
     <<: *platform-service
     command: ["python", "-m", "sentinel_storage.migrate", "upgrade"]
