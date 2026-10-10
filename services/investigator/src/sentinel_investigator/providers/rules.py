@@ -68,6 +68,19 @@ def _top_log_text(e: Evidence | None) -> str:
     return " ".join(m.get("example", "") for m in e.signals.get("top_messages", []))
 
 
+def _shown_change(e: Evidence | None, pattern: re.Pattern[str] | None = None) -> str:
+    """The one rollout worth naming in a description (detection uses all of them).
+
+    The latest change matching ``pattern`` if given, else the latest real change: on a
+    fresh cluster the window also holds the initial revision, which explains nothing.
+    """
+    changes = [str(c.get("change", "")) for c in (e.signals.get("recent_changes", []) if e else [])]
+    if pattern is not None and (hits := [c for c in changes if pattern.search(c)]):
+        return hits[-1]
+    real = [c for c in changes if c != "initial revision"]
+    return (real or changes or [""])[-1]
+
+
 def _recent_change_text(e: Evidence | None) -> str:
     if not e:
         return ""
@@ -134,7 +147,7 @@ class RulesProvider:
                     f"Pods of {svc} are crash-looping (restarts="
                     f"{pods.signals.get('restarts')}, last exit: "
                     f"{pods.signals.get('last_terminated_reasons') or waiting or 'n/a'})"
-                    + (f" right after a rollout ({change})." if rollouts else "."),
+                    + (f" right after a rollout ({_shown_change(rollouts)})." if rollouts else "."),
                     _ids(pods, rollouts, logs),
                     "rollback_deployment",
                     {"deployment": svc},
@@ -151,7 +164,11 @@ class RulesProvider:
                     svc,
                     conf,
                     f"{svc} 5xx spike coincides with configuration errors in its logs"
-                    + (f" and a recent rollout ({change})." if rollouts else "; no rollout seen."),
+                    + (
+                        f" and a recent rollout ({_shown_change(rollouts)})."
+                        if rollouts
+                        else "; no rollout seen."
+                    ),
                     _ids(errors, logs, rollouts, idx.get(K.ERROR_TRACES, svc)),
                     "rollback_deployment" if rollouts else None,
                     {"deployment": svc} if rollouts else {},
@@ -171,7 +188,8 @@ class RulesProvider:
                     CauseCategory.FEATURE_FLAG_REGRESSION,
                     svc,
                     0.85 * _recency(latency),
-                    f"{svc} p95 latency rose after {flag_match.group(1)} was enabled ({change}).",
+                    f"{svc} p95 latency rose after {flag_match.group(1)} was enabled "
+                    f"({_shown_change(rollouts, _FLAG_ON)}).",
                     _ids(latency, rollouts, slow),
                     "disable_feature_flag",
                     {"deployment": svc, "flag": flag_match.group(1)},

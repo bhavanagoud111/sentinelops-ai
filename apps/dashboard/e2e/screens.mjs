@@ -7,7 +7,7 @@ const out = process.argv[3] ?? "../../docs/images";
 
 const res = await fetch(`${base}/api/v1/auth/dev-token`, {
   method: "POST", headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username: "sam.sre" }),
+  body: JSON.stringify({ username: "ada.admin" }),
 });
 const { access_token: token } = await res.json();
 const incidents = await (await fetch(`${base}/api/v1/incidents?limit=50`, {

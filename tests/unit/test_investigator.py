@@ -441,3 +441,34 @@ async def test_recovered_dependency_does_not_tie_with_failing_one() -> None:
     by_svc = {h.suspected_service: h.confidence for h in result.hypotheses}
     assert result.hypotheses[0].suspected_service == "payment"
     assert by_svc["inventory"] < by_svc["payment"]
+
+
+def test_shown_change_names_the_relevant_rollout() -> None:
+    import uuid
+
+    from sentinel_investigator.models import Evidence, EvidenceKind
+    from sentinel_investigator.providers.rules import _FLAG_ON, _shown_change
+
+    changes = [
+        "initial revision",
+        "env FEATURE_NEW_STOCK_INDEX: off -> on",
+        "pod template annotations only (e.g. restart)",
+    ]
+    ev = Evidence.make(
+        incident_id=uuid.uuid4(),
+        kind=EvidenceKind.ROLLOUTS,
+        service="inventory",
+        source="kubernetes",
+        tool="get_recent_rollouts",
+        query="deployment/inventory",
+        start=datetime.now(UTC),
+        end=datetime.now(UTC),
+        retrieved_at=datetime.now(UTC),
+        summary="s",
+        anomalous=True,
+        signals={"recent_changes": [{"change": c} for c in changes]},
+    )
+    assert _shown_change(ev) == "pod template annotations only (e.g. restart)"
+    assert _shown_change(ev, _FLAG_ON) == "env FEATURE_NEW_STOCK_INDEX: off -> on"
+    only_initial = ev.model_copy(update={"signals": {"recent_changes": [{"change": changes[0]}]}})
+    assert _shown_change(only_initial) == "initial revision"

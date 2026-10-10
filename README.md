@@ -10,19 +10,47 @@ Every step is written to a tamper-evident audit log.
 > **Core invariant:** a model may analyze and recommend. It never executes infrastructure
 > operations. Remediation = allowlisted runbook + authenticated human approval + policy check.
 
-![Incident view: diagnosis, evidence, approval and verified recovery](docs/images/incident-light.png)
+<p align="center">
+  <img src="docs/media/demo.gif" width="900"
+       alt="Demo: a bad config is rolled out, an alert fires, the AI diagnoses it with evidence, two people approve a rollback, and recovery is verified">
+</p>
+<p align="center"><sub>
+  Recorded on the local stack: bad config rollout → alert → AI diagnosis with cited evidence →
+  four-eyes approval → policy-checked rollback → verified recovery. Waiting time is sped up.
+  <a href="docs/media/demo.mp4">MP4 version</a>
+</sub></p>
 
-<!-- RESULTS -->
+**Measured, not claimed:** in 15 end-to-end runs of five failure types on a local Kubernetes
+cluster, SentinelOps named the correct root cause **15/15**, proposed the right fix (or
+correctly handed off to a human) **15/15**, every executed fix was verified, and it took
+**zero unauthorized actions**. [Method and raw records ↓](#evaluation)
+
+## The problem it solves
+
+When a production alert fires, the first minutes of on-call go to the same routine: open
+dashboards, search logs, check what was deployed recently, decide whether to roll back.
+That routine is a good fit for automation; giving an AI write access to production is
+not. SentinelOps automates the investigation and proposes one fix, but keeps people in
+charge of anything that changes the system: one person requests the change, a different
+person approves it, and a policy engine re-checks it at the moment it runs.
+
+It is built for platform and SRE teams running services on Kubernetes with
+OpenTelemetry/Prometheus-style monitoring who want faster triage without giving up
+change control. The same chart and Terraform used here
+[deploy it to AWS](#deploy-to-aws) against your own services.
 
 ---
 
 ## Contents
+- [The problem it solves](#the-problem-it-solves)
 - [How it works](#how-it-works)
+- [Screenshots](#screenshots)
 - [Try it locally (10 minutes)](#try-it-locally)
 - [Walkthrough: break something, watch it get fixed](#walkthrough)
 - [Deploy to your own AWS account](#deploy-to-aws)
 - [Safety model](#safety-model)
 - [Evaluation](#evaluation)
+- [Tech stack](#tech-stack)
 - [Repository layout](#repository-layout)
 - [Development](#development)
 - [Limitations and roadmap](#limitations-and-roadmap)
@@ -60,6 +88,25 @@ Every step is written to a tamper-evident audit log.
 The investigator runs with a **deterministic rules provider by default** (free, offline,
 reproducible). Set `SENTINEL_LLM_PROVIDER=claude` and `ANTHROPIC_API_KEY` to use Claude;
 its output goes through the same schema, critic and policy checks.
+
+## Screenshots
+
+| Overview | Incidents |
+|---|---|
+| <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/overview-dark.png"><img src="docs/images/overview-light.png" alt="Overview: active incidents, live request, error and latency charts, event stream"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/incidents-dark.png"><img src="docs/images/incidents-light.png" alt="Incident list with status, severity, service and AI diagnosis"></picture> |
+| **Services**: dependency graph and per-service health | **Experiments**: five sandbox faults to inject |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/services-dark.png"><img src="docs/images/services-light.png" alt="Service catalog with dependency graph"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/experiments-dark.png"><img src="docs/images/experiments-light.png" alt="Experiments page with five fault scenarios"></picture> |
+
+<details>
+<summary><b>Incident detail</b> (full page): lifecycle, AI diagnosis with cited evidence, approval, execution, verification, timeline</summary>
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/incident-dark.png"><img src="docs/images/incident-light.png" alt="Incident detail page"></picture>
+
+</details>
+
+Screenshots follow your GitHub theme (light or dark). Regenerate with
+`node apps/dashboard/e2e/screens.mjs`; the demo with `node apps/dashboard/e2e/demo.mjs`
+and `python scripts/make_demo_media.py`.
 
 ## Try it locally
 
@@ -166,7 +213,54 @@ an adversarial model that tries prompt injection, fake evidence and out-of-scope
 
 ## Evaluation
 
-<!-- EVALUATION -->
+**Method.** Each run breaks a real service on the local kind cluster, waits for the
+alert-driven incident and the investigation, then (for A, B, D, E) has an operator request
+the proposed fix, a *different* user approve it, the executor run it and the verifier
+confirm recovery. Five scenarios × 3 runs, deterministic rules provider, 2026-10-10.
+
+| Scenario | Root cause | Outcome | Runbook | Verified recovery | Alert → incident (p50) | Fix → verified (p50) |
+|---|---|---|---|---|---|---|
+| A · bad config rollout | 3/3 | 3/3 | 3/3 | 3/3 | 106 s | 96 s |
+| B · feature-flag latency | 3/3 | 3/3 | 3/3 | 3/3 | 166 s | 60 s |
+| C · payment outage (escalate) | 3/3 | 3/3 | 3/3 | n/a, handed to a human | 105 s | — |
+| D · crash loop after rollout | 3/3 | 3/3 | 3/3 | 3/3 | 63 s | 54 s |
+| E · memory leak | 3/3 | 3/3 | 3/3 | 3/3 | 189 s | 139 s |
+
+Investigation itself takes under 3 s (below the runner's polling interval). Detection time
+is dominated by the alert rules' `for:` windows, which exist to avoid paging on blips.
+Unauthorized actions: **0**; every execution passed the policy engine.
+Full summary and raw per-run JSON (timeline, evidence, policy checks, verification):
+[`docs/evaluation/live-20261010T1716Z`](docs/evaluation/live-20261010T1716Z/SUMMARY.md).
+
+**What earlier runs caught.** The first live batches scored 11/15. Each miss was traced to
+a real bug and fixed with a regression test. The original records are kept in
+[`docs/evaluation/history`](docs/evaluation/history):
+
+- Re-deploying a version Kubernetes had seen before reuses its old ReplicaSet, whose
+  creation time predates the rollout, so the rollout looked old. Rollout time now comes
+  from the ReplicaSet's reactivation.
+- Memory was summed across processes, and replaced pods linger in Prometheus for about
+  5 minutes, which inflated the baseline. Now `max()`, matching the alert rule.
+- A previous episode of the same alert at the start of the look-back window became the
+  "normal" baseline and hid the current one.
+- A dependency that had already recovered tied with the one failing now.
+
+Offline, CI also replays recorded fixtures for every scenario (`make check`), and
+`tests/security` covers ingestion abuse, the authorization matrix, forged tokens and an
+adversarial model that attempts prompt injection, fake evidence and out-of-scope actions.
+
+## Tech stack
+
+| Area | Built with |
+|---|---|
+| Control plane | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy + Alembic, asyncpg, aiokafka |
+| AI investigation | LangGraph (bounded, typed, read-only tools); rules provider by default, Anthropic Claude optional |
+| Messaging and storage | Redpanda (Kafka API), PostgreSQL with a transactional outbox and hash-chained audit log |
+| Observability | OpenTelemetry, Prometheus, Alertmanager, Loki, Tempo, Grafana |
+| Remediation | Kubernetes Python client, namespaced RBAC, fixed JSON-patch runbooks, policy engine |
+| Dashboard | React 19, TypeScript, Vite, TanStack Query, server-sent events |
+| Platform | Docker Compose, kind, Helm, Terraform (AWS VPC, EKS, RDS, ECR, MSK), GitHub Actions |
+| Quality | pytest, mypy `--strict`, ruff, Vitest, Playwright, kubeconform, gitleaks, pip-audit, Trivy |
 
 ## Repository layout
 ```
@@ -219,6 +313,9 @@ plus a nightly full end-to-end run on kind. Contributor guide:
   crash loop, feature-flag regression, dependency failure, resource saturation);
   anything else is escalated. Claude broadens coverage but has not yet been benchmarked
   against the rules baseline here.
+- **Look-back window:** investigations compare the last 20 minutes against their own start.
+  If a service has been completely down for the whole window, there is no healthy "before"
+  and the investigation hands off to a human rather than guess.
 - **AWS:** the Terraform has been validated, not applied by the authors; first apply
   should be treated as staging.
 
