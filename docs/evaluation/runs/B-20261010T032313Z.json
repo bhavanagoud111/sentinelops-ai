@@ -1,0 +1,304 @@
+{
+ "scenario": "B",
+ "started_at": "2026-10-10T03:19:12.473149+00:00",
+ "incident_id": "cc02d349-4ca0-4d30-8416-176c13170660",
+ "investigation": "proposed",
+ "top": [
+  "feature_flag_regression",
+  "inventory"
+ ],
+ "proposal": {
+  "risk": "low",
+  "params": {
+   "flag": "FEATURE_NEW_STOCK_INDEX",
+   "namespace": "sentinelops-demo",
+   "deployment": "inventory"
+  },
+  "rationale": "inventory p95 latency rose after FEATURE_NEW_STOCK_INDEX was enabled (env FEATURE_NEW_STOCK_INDEX: off -> on).",
+  "runbook_id": "disable_feature_flag",
+  "blast_radius": {
+   "risk": "low",
+   "namespace": "sentinelops-demo",
+   "dependents": [
+    "checkout"
+   ],
+   "deployment": "inventory",
+   "criticality": "high",
+   "current_revision": 2
+  },
+  "evidence_ids": [
+   "ev_b1630cc7a20a8809",
+   "ev_c9b9bda7888273f4",
+   "ev_4b06693575cac6f1"
+  ],
+  "hypothesis_id": "h1",
+  "target_revision": 2
+ },
+ "diagnosis_correct": true,
+ "outcome_expected": true,
+ "runbook_expected": true,
+ "execution": {
+  "id": "fdb3dc42-6970-4224-8fcb-6d6776bccec8",
+  "incident_id": "cc02d349-4ca0-4d30-8416-176c13170660",
+  "approval_id": "ac975182-5145-4393-ad5c-f72b885048d7",
+  "runbook_id": "disable_feature_flag",
+  "target": "sentinelops-demo/inventory",
+  "params": {
+   "flag": "FEATURE_NEW_STOCK_INDEX",
+   "namespace": "sentinelops-demo",
+   "deployment": "inventory"
+  },
+  "status": "succeeded",
+  "requested_by": "oscar.operator",
+  "policy": {
+   "checks": [
+    {
+     "name": "mode_allows_writes",
+     "detail": "REMEDIATION_MODE=sandbox",
+     "passed": true
+    },
+    {
+     "name": "runbook_allowlisted",
+     "detail": "runbook 'disable_feature_flag'",
+     "passed": true
+    },
+    {
+     "name": "params_valid",
+     "detail": "parameters match the runbook schema",
+     "passed": true
+    },
+    {
+     "name": "namespace_allowed",
+     "detail": "namespace 'sentinelops-demo'",
+     "passed": true
+    },
+    {
+     "name": "deployment_allowed",
+     "detail": "deployment 'inventory'",
+     "passed": true
+    },
+    {
+     "name": "approval_present",
+     "detail": "approval record found",
+     "passed": true
+    },
+    {
+     "name": "approval_approved",
+     "detail": "approval status 'approved'",
+     "passed": true
+    },
+    {
+     "name": "approval_not_expired",
+     "detail": "expires 2026-10-10T03:37:16.428320+00:00",
+     "passed": true
+    },
+    {
+     "name": "four_eyes",
+     "detail": "requested by 'oscar.operator', approved by 'anna.approver'",
+     "passed": true
+    },
+    {
+     "name": "approval_bound_to_action",
+     "detail": "approval hash matches incident, runbook, parameters and target revision",
+     "passed": true
+    },
+    {
+     "name": "incident_state",
+     "detail": "incident is REMEDIATING",
+     "passed": true
+    },
+    {
+     "name": "target_exists",
+     "detail": "deployment sentinelops-demo/inventory",
+     "passed": true
+    },
+    {
+     "name": "no_revision_drift",
+     "detail": "live revision 2, approved against 2",
+     "passed": true
+    },
+    {
+     "name": "flag_allowlisted",
+     "detail": "flag FEATURE_NEW_STOCK_INDEX",
+     "passed": true
+    },
+    {
+     "name": "flag_currently_on",
+     "detail": "FEATURE_NEW_STOCK_INDEX=on",
+     "passed": true
+    },
+    {
+     "name": "no_concurrent_action",
+     "detail": "0 other action(s) in flight on this target",
+     "passed": true
+    },
+    {
+     "name": "cooldown_elapsed",
+     "detail": "no recent action",
+     "passed": true
+    }
+   ],
+   "allowed": true
+  },
+  "command_template": "kubectl set env deployment/inventory FEATURE_NEW_STOCK_INDEX=off -n sentinelops-demo",
+  "before_state": {
+   "env": {
+    "OTEL_SERVICE_NAME": "inventory",
+    "INVENTORY_STOCK_SEED": "default",
+    "DEPLOYMENT_ENVIRONMENT": "local",
+    "FEATURE_NEW_STOCK_INDEX": "on",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector:4318",
+    "OTEL_METRIC_EXPORT_INTERVAL": "5000",
+    "OTEL_SEMCONV_STABILITY_OPT_IN": "http"
+   },
+   "image": "sentinelops/demo-inventory:dev",
+   "replicas": 2,
+   "revision": 2,
+   "generation": 2,
+   "ready_replicas": 2
+  },
+  "after_state": {
+   "env": {
+    "OTEL_SERVICE_NAME": "inventory",
+    "INVENTORY_STOCK_SEED": "default",
+    "DEPLOYMENT_ENVIRONMENT": "local",
+    "FEATURE_NEW_STOCK_INDEX": "off",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector:4318",
+    "OTEL_METRIC_EXPORT_INTERVAL": "5000",
+    "OTEL_SEMCONV_STABILITY_OPT_IN": "http"
+   },
+   "image": "sentinelops/demo-inventory:dev",
+   "replicas": 2,
+   "revision": 3,
+   "generation": 3,
+   "ready_replicas": 2,
+   "rollout_seconds": 4.0
+  },
+  "verification": {
+   "rounds": [
+    {
+     "at": "2026-10-10T03:22:50.656361+00:00",
+     "checks": [
+      "inventory p95 latency peak 2425 ms (baseline 2357 ms, onset None) (still above threshold: False)",
+      "pods 2/2 ready, waiting=[]"
+     ],
+     "healthy": true,
+     "evidence_ids": [
+      "ev_e642c765c255feec",
+      "ev_584bf2d215aa169f"
+     ]
+    },
+    {
+     "at": "2026-10-10T03:23:10.717526+00:00",
+     "checks": [
+      "inventory p95 latency peak 2425 ms (baseline 2425 ms, onset None) (still above threshold: False)",
+      "pods 2/2 ready, waiting=[]"
+     ],
+     "healthy": true,
+     "evidence_ids": [
+      "ev_9042897132012e08",
+      "ev_f4a137c577b3cecc"
+     ]
+    }
+   ],
+   "recovered": true,
+   "required_passes": 2
+  },
+  "error": null,
+  "created_at": "2026-10-10T03:22:16.452001Z",
+  "started_at": "2026-10-10T03:22:16.542888Z",
+  "finished_at": "2026-10-10T03:22:20.581318Z"
+ },
+ "final_status": "RESOLVED",
+ "timings_s": {
+  "fault injected": 0.2,
+  "incident open (cc02d349-4ca0-4d30-8416-176c13170660, INVESTIGATING)": 180.9,
+  "investigation proposed": 183.9,
+  "approval requested by oscar.operator (disable_feature_flag {'namespace': 'sentinelops-demo', 'deployment': 'inventory', 'flag': 'FEATURE_NEW_STOCK_INDEX'})": 184.0,
+  "approved by anna.approver": 184.0,
+  "execution requested (fdb3dc42-6970-4224-8fcb-6d6776bccec8)": 184.0,
+  "incident RESOLVED": 241.2
+ },
+ "timeline": [
+  {
+   "at": "2026-10-10T03:22:12.756861Z",
+   "kind": "alert",
+   "title": "InventoryHighLatencyP95 firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:cf40a288a1f363055c96785d07aba470",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T03:22:13.033760Z",
+   "kind": "transition",
+   "title": "\u2205 \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert InventoryHighLatencyP95 firing",
+    "correlation_id": "alertmanager:cf40a288a1f363055c96785d07aba470"
+   }
+  },
+  {
+   "at": "2026-10-10T03:22:13.243693Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:cf40a288a1f363055c96785d07aba470"
+   }
+  },
+  {
+   "at": "2026-10-10T03:22:13.243693Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:cf40a288a1f363055c96785d07aba470"
+   }
+  },
+  {
+   "at": "2026-10-10T03:22:13.378319Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:cf40a288a1f363055c96785d07aba470"
+   }
+  },
+  {
+   "at": "2026-10-10T03:22:16.451741Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing disable_feature_flag (approved by anna.approver)",
+    "correlation_id": "fdb3dc42-6970-4224-8fcb-6d6776bccec8"
+   }
+  },
+  {
+   "at": "2026-10-10T03:22:20.581318Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "disable_feature_flag applied in 4.0s; verifying",
+    "correlation_id": "fdb3dc42-6970-4224-8fcb-6d6776bccec8"
+   }
+  },
+  {
+   "at": "2026-10-10T03:23:10.739154Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: inventory p95 latency peak 2425 ms (baseline 2425 ms, onset None) (still above threshold: False); pods 2/2 ready, waiting=[]",
+    "correlation_id": "fdb3dc42-6970-4224-8fcb-6d6776bccec8"
+   }
+  }
+ ]
+}

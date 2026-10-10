@@ -9,10 +9,12 @@
 .env
 .env.*
 node_modules
-apps/dashboard
+apps/dashboard/node_modules
+apps/dashboard/dist
 docs
 tests
 infra
+!infra/docker/dashboard-nginx.conf
 scripts
 .github
 *.md

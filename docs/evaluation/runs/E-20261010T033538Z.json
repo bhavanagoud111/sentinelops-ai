@@ -1,0 +1,321 @@
+{
+ "scenario": "E",
+ "started_at": "2026-10-10T03:30:35.619830+00:00",
+ "incident_id": "6a9c3d51-51da-42d3-80d0-c99af2e91161",
+ "investigation": "proposed",
+ "top": [
+  "resource_saturation",
+  "worker"
+ ],
+ "proposal": {
+  "risk": "low",
+  "params": {
+   "namespace": "sentinelops-demo",
+   "deployment": "worker"
+  },
+  "rationale": "worker resident memory grew from 48783360.0 to 612761600.0 bytes \u2014 consistent with a leak.",
+  "runbook_id": "restart_deployment",
+  "blast_radius": {
+   "risk": "low",
+   "namespace": "sentinelops-demo",
+   "dependents": [],
+   "deployment": "worker",
+   "criticality": "medium",
+   "current_revision": 6
+  },
+  "evidence_ids": [
+   "ev_bbdac6c1874e2237",
+   "ev_c795fc3492210add"
+  ],
+  "hypothesis_id": "h1",
+  "target_revision": 6
+ },
+ "diagnosis_correct": true,
+ "outcome_expected": true,
+ "runbook_expected": true,
+ "execution": {
+  "id": "da41f180-85b2-4c6d-81a0-605f4d462b96",
+  "incident_id": "6a9c3d51-51da-42d3-80d0-c99af2e91161",
+  "approval_id": "fb33b621-6c3c-46b2-8299-adae238429eb",
+  "runbook_id": "restart_deployment",
+  "target": "sentinelops-demo/worker",
+  "params": {
+   "namespace": "sentinelops-demo",
+   "deployment": "worker"
+  },
+  "status": "succeeded",
+  "requested_by": "oscar.operator",
+  "policy": {
+   "checks": [
+    {
+     "name": "mode_allows_writes",
+     "detail": "REMEDIATION_MODE=sandbox",
+     "passed": true
+    },
+    {
+     "name": "runbook_allowlisted",
+     "detail": "runbook 'restart_deployment'",
+     "passed": true
+    },
+    {
+     "name": "params_valid",
+     "detail": "parameters match the runbook schema",
+     "passed": true
+    },
+    {
+     "name": "namespace_allowed",
+     "detail": "namespace 'sentinelops-demo'",
+     "passed": true
+    },
+    {
+     "name": "deployment_allowed",
+     "detail": "deployment 'worker'",
+     "passed": true
+    },
+    {
+     "name": "approval_present",
+     "detail": "approval record found",
+     "passed": true
+    },
+    {
+     "name": "approval_approved",
+     "detail": "approval status 'approved'",
+     "passed": true
+    },
+    {
+     "name": "approval_not_expired",
+     "detail": "expires 2026-10-10T03:48:44.448550+00:00",
+     "passed": true
+    },
+    {
+     "name": "four_eyes",
+     "detail": "requested by 'oscar.operator', approved by 'anna.approver'",
+     "passed": true
+    },
+    {
+     "name": "approval_bound_to_action",
+     "detail": "approval hash matches incident, runbook, parameters and target revision",
+     "passed": true
+    },
+    {
+     "name": "incident_state",
+     "detail": "incident is REMEDIATING",
+     "passed": true
+    },
+    {
+     "name": "target_exists",
+     "detail": "deployment sentinelops-demo/worker",
+     "passed": true
+    },
+    {
+     "name": "no_revision_drift",
+     "detail": "live revision 6, approved against 6",
+     "passed": true
+    },
+    {
+     "name": "no_concurrent_action",
+     "detail": "0 other action(s) in flight on this target",
+     "passed": true
+    },
+    {
+     "name": "cooldown_elapsed",
+     "detail": "no recent action",
+     "passed": true
+    }
+   ],
+   "allowed": true
+  },
+  "command_template": "kubectl rollout restart deployment/worker -n sentinelops-demo",
+  "before_state": {
+   "env": {
+    "OTEL_SERVICE_NAME": "worker",
+    "DEPLOYMENT_ENVIRONMENT": "local",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector:4318",
+    "OTEL_METRIC_EXPORT_INTERVAL": "5000",
+    "OTEL_SEMCONV_STABILITY_OPT_IN": "http"
+   },
+   "image": "sentinelops/demo-worker:dev",
+   "replicas": 1,
+   "revision": 6,
+   "generation": 6,
+   "ready_replicas": 1
+  },
+  "after_state": {
+   "env": {
+    "OTEL_SERVICE_NAME": "worker",
+    "DEPLOYMENT_ENVIRONMENT": "local",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://otel-collector:4318",
+    "OTEL_METRIC_EXPORT_INTERVAL": "5000",
+    "OTEL_SEMCONV_STABILITY_OPT_IN": "http"
+   },
+   "image": "sentinelops/demo-worker:dev",
+   "replicas": 1,
+   "revision": 7,
+   "generation": 7,
+   "ready_replicas": 1,
+   "rollout_seconds": 2.0
+  },
+  "verification": {
+   "rounds": [
+    {
+     "at": "2026-10-10T03:34:16.971998+00:00",
+     "checks": [
+      "worker RSS peak 651 MiB (baseline 285 MiB) (still above threshold: True)",
+      "pods 1/1 ready, waiting=[]"
+     ],
+     "healthy": false,
+     "evidence_ids": [
+      "ev_d58f3b06ffd6c263",
+      "ev_0c494bd43d3aa3b8"
+     ]
+    },
+    {
+     "at": "2026-10-10T03:34:37.028444+00:00",
+     "checks": [
+      "worker RSS peak 651 MiB (baseline 335 MiB) (still above threshold: True)",
+      "pods 1/1 ready, waiting=[]"
+     ],
+     "healthy": false,
+     "evidence_ids": [
+      "ev_a25d9ed8b138a657",
+      "ev_24a3e71e429942e0"
+     ]
+    },
+    {
+     "at": "2026-10-10T03:34:57.057547+00:00",
+     "checks": [
+      "worker RSS peak 651 MiB (baseline 385 MiB) (still above threshold: True)",
+      "pods 1/1 ready, waiting=[]"
+     ],
+     "healthy": false,
+     "evidence_ids": [
+      "ev_ce65d87647280c0b",
+      "ev_00817133b8995b08"
+     ]
+    },
+    {
+     "at": "2026-10-10T03:35:17.065769+00:00",
+     "checks": [
+      "worker RSS peak 651 MiB (baseline 435 MiB) (still above threshold: False)",
+      "pods 1/1 ready, waiting=[]"
+     ],
+     "healthy": true,
+     "evidence_ids": [
+      "ev_0782ddf81580223c",
+      "ev_36ffbfec623eacfa"
+     ]
+    },
+    {
+     "at": "2026-10-10T03:35:37.086593+00:00",
+     "checks": [
+      "worker RSS peak 651 MiB (baseline 485 MiB) (still above threshold: False)",
+      "pods 1/1 ready, waiting=[]"
+     ],
+     "healthy": true,
+     "evidence_ids": [
+      "ev_cfd11c594f5e7419",
+      "ev_f4d7fed3b862b544"
+     ]
+    }
+   ],
+   "recovered": true,
+   "required_passes": 2
+  },
+  "error": null,
+  "created_at": "2026-10-10T03:33:44.466839Z",
+  "started_at": "2026-10-10T03:33:44.723123Z",
+  "finished_at": "2026-10-10T03:33:46.782154Z"
+ },
+ "final_status": "RESOLVED",
+ "timings_s": {
+  "fault injected": 2.1,
+  "incident open (6a9c3d51-51da-42d3-80d0-c99af2e91161, AWAITING_APPROVAL)": 188.8,
+  "investigation proposed": 188.8,
+  "approval requested by oscar.operator (restart_deployment {'namespace': 'sentinelops-demo', 'deployment': 'worker'})": 188.8,
+  "approved by anna.approver": 188.8,
+  "execution requested (da41f180-85b2-4c6d-81a0-605f4d462b96)": 188.9,
+  "incident RESOLVED": 303.4
+ },
+ "timeline": [
+  {
+   "at": "2026-10-10T03:33:42.748613Z",
+   "kind": "alert",
+   "title": "WorkerMemoryHigh firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:100073f60fb806fc8a25da5a127abebf",
+    "severity": "high"
+   }
+  },
+  {
+   "at": "2026-10-10T03:33:42.794035Z",
+   "kind": "transition",
+   "title": "\u2205 \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert WorkerMemoryHigh firing",
+    "correlation_id": "alertmanager:100073f60fb806fc8a25da5a127abebf"
+   }
+  },
+  {
+   "at": "2026-10-10T03:33:43.021264Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:100073f60fb806fc8a25da5a127abebf"
+   }
+  },
+  {
+   "at": "2026-10-10T03:33:43.021264Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:100073f60fb806fc8a25da5a127abebf"
+   }
+  },
+  {
+   "at": "2026-10-10T03:33:43.109265Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:100073f60fb806fc8a25da5a127abebf"
+   }
+  },
+  {
+   "at": "2026-10-10T03:33:44.466511Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing restart_deployment (approved by anna.approver)",
+    "correlation_id": "da41f180-85b2-4c6d-81a0-605f4d462b96"
+   }
+  },
+  {
+   "at": "2026-10-10T03:33:46.782154Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "restart_deployment applied in 2.0s; verifying",
+    "correlation_id": "da41f180-85b2-4c6d-81a0-605f4d462b96"
+   }
+  },
+  {
+   "at": "2026-10-10T03:35:37.107959Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: worker RSS peak 651 MiB (baseline 485 MiB) (still above threshold: False); pods 1/1 ready, waiting=[]",
+    "correlation_id": "da41f180-85b2-4c6d-81a0-605f4d462b96"
+   }
+  }
+ ]
+}

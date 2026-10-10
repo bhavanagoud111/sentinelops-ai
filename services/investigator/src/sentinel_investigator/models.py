@@ -173,6 +173,8 @@ class RemediationProposal(BaseModel):
     rationale: str
     evidence_ids: list[str]
     blast_radius: dict[str, Any]
+    # Deployment revision observed during the investigation; approvals bind to it.
+    target_revision: int | None = None
 
 
 class AgentStep(BaseModel):

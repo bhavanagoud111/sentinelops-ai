@@ -333,3 +333,69 @@ def test_evidence_signals_are_postgres_json_safe() -> None:
     text = json.dumps(e.signals, allow_nan=False)  # raises if NaN/Infinity remain
     assert e.signals["threshold"] is None
     assert json.loads(text)["n"] == {"3": "x"}
+
+
+async def test_recovered_anomaly_weighs_less_than_active_one() -> None:
+    import json
+
+    from sentinel_investigator.evaluation import evaluate
+    from sentinel_investigator.providers.rules import RulesProvider
+
+    raw = json.loads((FIXTURES / "A_checkout_bad_config.json").read_text())
+    raw["observations"]["metric.error_ratio|checkout"]["signals"]["active"] = False
+    tmp = FIXTURES.parent / "_tmp_recovered.json"
+    try:
+        tmp.write_text(json.dumps(raw))
+        _, result = await evaluate(tmp, RulesProvider())
+    finally:
+        tmp.unlink()
+    top = result.hypotheses[0]
+    assert top.confidence == pytest.approx(0.85 * 0.6, abs=0.01)
+
+
+async def test_crash_loop_detected_between_restarts() -> None:
+    import json
+
+    from sentinel_investigator.evaluation import evaluate
+    from sentinel_investigator.providers.rules import RulesProvider
+
+    raw = json.loads((FIXTURES / "D_inventory_crashloop_rollout.json").read_text())
+    pod = raw["observations"]["k8s.pod_status|inventory"]["signals"]
+    pod["waiting_reasons"] = []  # sampled while the container was briefly Running
+    pod["crash_looping"] = True
+    tmp = FIXTURES.parent / "_tmp_between_restarts.json"
+    try:
+        tmp.write_text(json.dumps(raw))
+        score, _ = await evaluate(tmp, RulesProvider())
+    finally:
+        tmp.unlink()
+    assert score.passed, score
+
+
+def test_flag_regex_only_matches_switching_on() -> None:
+    from sentinel_investigator.providers.rules import _FLAG_ON
+
+    assert _FLAG_ON.search("env FEATURE_NEW_STOCK_INDEX: off -> on")
+    assert _FLAG_ON.search("FEATURE_NEW_STOCK_INDEX=on")
+    assert not _FLAG_ON.search("env FEATURE_NEW_STOCK_INDEX: on -> off")
+    assert not _FLAG_ON.search("env FEATURE_NEW_STOCK_INDEX: on -> off; env X: a -> b")
+
+
+async def test_reverted_flag_is_not_blamed() -> None:
+    import json
+
+    from sentinel_investigator.evaluation import evaluate
+    from sentinel_investigator.providers.rules import RulesProvider
+
+    raw = json.loads((FIXTURES / "B_inventory_feature_flag_latency.json").read_text())
+    raw["observations"]["k8s.rollouts|inventory"]["signals"]["current_env"] = {
+        "FEATURE_NEW_STOCK_INDEX": "off"  # flag already turned back off
+    }
+    tmp = FIXTURES.parent / "_tmp_reverted_flag.json"
+    try:
+        tmp.write_text(json.dumps(raw))
+        _, result = await evaluate(tmp, RulesProvider())
+    finally:
+        tmp.unlink()
+    assert all(h.cause_category.value != "feature_flag_regression" for h in result.hypotheses)
+    assert result.proposal is None

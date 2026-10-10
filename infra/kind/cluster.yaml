@@ -1,0 +1,15 @@
+# Local Kubernetes for the demo workload (ADR-007). Created by `make kind-up`.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: sentinelops
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    # Demo service NodePorts exposed on the host loopback only.
+    extraPortMappings:
+      - { containerPort: 30081, hostPort: 18081, listenAddress: "127.0.0.1" }  # checkout
+      - { containerPort: 30082, hostPort: 18082, listenAddress: "127.0.0.1" }  # inventory
+      - { containerPort: 30083, hostPort: 18083, listenAddress: "127.0.0.1" }  # payment
+      - { containerPort: 30084, hostPort: 18084, listenAddress: "127.0.0.1" }  # worker
+networking:
+  apiServerAddress: "127.0.0.1"

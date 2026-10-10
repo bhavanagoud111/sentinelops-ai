@@ -26,3 +26,6 @@ build/
 
 # Node (Phase 5)
 node_modules/
+apps/dashboard/dist/
+apps/dashboard/test-results/
+apps/dashboard/playwright-report/

@@ -18,7 +18,9 @@ ADRs: [`docs/adr`](docs/adr) · Threat model: [`docs/threat-model.md`](docs/thre
 | 1 | Demo services, OTel, Prometheus/Loki/Tempo/Grafana, alerts | built — exit gate verified locally 2026-10-09 (metric, log, trace, alert); scenario B alert also verified |
 | 2 | Gateway, outbox, Redpanda, correlator, Postgres, incidents API | built — exit gate verified locally: dedup, consumer replay, restart+full-topic replay, real alert → incident in 110 s |
 | 3 | Bounded LangGraph investigation, evidence citations, critic, rules baseline + optional Claude | built — fixtures pass in mock mode; live investigation + crash-orphan recovery verified |
-| 4–7 | Remediation, UI, hardening, cloud | in progress |
+| 4 | kind workload, approvals, policy engine, scoped executor, verifier, audit | built — all five scenarios verified live on Kubernetes (A, B, D, E resolved after approval; C escalated) |
+| 5 | React dashboard, SSE, Grafana deep links, experiments | built — 5 Playwright e2e tests pass against the live stack |
+| 6–7 | Hardening/evaluation, Helm/Terraform | in progress |
 
 ## Quick start
 Prerequisites: [uv](https://docs.astral.sh/uv/), Docker (Desktop/OrbStack/Colima), `make`, `curl`.

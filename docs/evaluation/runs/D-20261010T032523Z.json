@@ -1,0 +1,69 @@
+{
+ "scenario": "D",
+ "started_at": "2026-10-10T03:24:35.388414+00:00",
+ "incident_id": "7095bb71-bd47-48ec-bbdf-a8fd817b8915",
+ "investigation": "abstained",
+ "top": null,
+ "proposal": null,
+ "diagnosis_correct": false,
+ "outcome_expected": false,
+ "runbook_expected": false,
+ "final_status": "NEEDS_HUMAN",
+ "timings_s": {
+  "fault injected": 0.2,
+  "incident open (7095bb71-bd47-48ec-bbdf-a8fd817b8915, NEEDS_HUMAN)": 48.5,
+  "investigation abstained": 48.5
+ },
+ "timeline": [
+  {
+   "at": "2026-10-10T03:25:22.742091Z",
+   "kind": "alert",
+   "title": "DeploymentCrashLooping firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:38881ac95917744c5ed04f8ea9f0c6e9",
+    "severity": "critical"
+   }
+  },
+  {
+   "at": "2026-10-10T03:25:22.923630Z",
+   "kind": "transition",
+   "title": "\u2205 \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert DeploymentCrashLooping firing",
+    "correlation_id": "alertmanager:38881ac95917744c5ed04f8ea9f0c6e9"
+   }
+  },
+  {
+   "at": "2026-10-10T03:25:23.140678Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:38881ac95917744c5ed04f8ea9f0c6e9"
+   }
+  },
+  {
+   "at": "2026-10-10T03:25:23.140678Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:38881ac95917744c5ed04f8ea9f0c6e9"
+   }
+  },
+  {
+   "at": "2026-10-10T03:25:23.187692Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 NEEDS_HUMAN",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation abstained",
+    "correlation_id": "alertmanager:38881ac95917744c5ed04f8ea9f0c6e9"
+   }
+  }
+ ]
+}

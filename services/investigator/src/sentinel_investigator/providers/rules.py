@@ -21,7 +21,9 @@ from sentinel_investigator.providers.base import AnalysisInput, ProviderResult
 from sentinel_investigator.tools import Toolbox, ToolContext
 
 K = EvidenceKind
-_FLAG_ON = re.compile(r"(FEATURE_[A-Z0-9_]+)\s*[:=]?\s*(?:\S+\s*(?:->|→)\s*)?on\b", re.I)
+_FLAG_ON = re.compile(
+    r"(FEATURE_[A-Z0-9_]+)(?::\s*\S+\s*(?:->|→)\s*|=)on\b", re.I
+)  # "FEATURE_X: off -> on" or "FEATURE_X=on" — never "on -> off"
 _CONFIG_WORDS = re.compile(r"config|configuration|invalid .*url|settings", re.I)
 _TIMEOUT_WORDS = re.compile(r"timeout|timed out|deadline", re.I)
 
@@ -38,6 +40,22 @@ class _Index:
     def anomalous(self, kind: EvidenceKind, service: str) -> Evidence | None:
         e = self.get(kind, service)
         return e if e and e.anomalous else None
+
+
+def _recency(e: Evidence | None) -> float:
+    """1.0 if the anomaly is still active at the end of the window, else 0.6.
+
+    An anomaly that already recovered (e.g. an earlier, unrelated incident inside the
+    lookback window) is weaker evidence for the *current* incident. Evidence without an
+    ``active`` signal (fixtures, k8s state) counts as active.
+    """
+    if e is None:
+        return 1.0
+    return 1.0 if e.signals.get("active", True) else 0.6
+
+
+def _mib(v: object) -> str:
+    return f"{float(v) / 2**20:.0f} MiB" if isinstance(v, int | float) else "n/a"
 
 
 def _ids(*evs: Evidence | None) -> list[str]:
@@ -106,14 +124,16 @@ class RulesProvider:
 
         # R1: crash-looping pods after a rollout.
         waiting = " ".join(pods.signals.get("waiting_reasons", []) if pods else [])
-        if pods and "CrashLoopBackOff" in waiting:
+        if pods and (pods.signals.get("crash_looping") or "CrashLoopBackOff" in waiting):
             conf = 0.75 + (0.15 if rollouts else 0.0)
             out.append(
                 self._h(
                     CauseCategory.CRASH_LOOP_ROLLOUT,
                     svc,
                     conf,
-                    f"Pods of {svc} are in CrashLoopBackOff"
+                    f"Pods of {svc} are crash-looping (restarts="
+                    f"{pods.signals.get('restarts')}, last exit: "
+                    f"{pods.signals.get('last_terminated_reasons') or waiting or 'n/a'})"
                     + (f" right after a rollout ({change})." if rollouts else "."),
                     _ids(pods, rollouts, logs),
                     "rollback_deployment",
@@ -124,7 +144,7 @@ class RulesProvider:
 
         # R2: error spike with configuration errors in logs, ideally after a rollout.
         if errors and logs and _CONFIG_WORDS.search(_top_log_text(logs)):
-            conf = 0.6 + (0.25 if rollouts else 0.0)
+            conf = (0.6 + (0.25 if rollouts else 0.0)) * _recency(errors)
             out.append(
                 self._h(
                     CauseCategory.BAD_CONFIG_ROLLOUT,
@@ -141,12 +161,16 @@ class RulesProvider:
 
         # R3: latency regression after a feature flag was switched on.
         flag_match = _FLAG_ON.search(change)
-        if latency and flag_match:
+        current_env = rollouts.signals.get("current_env", {}) if rollouts else {}
+        flag_on_now = flag_match is not None and (
+            not current_env or str(current_env.get(flag_match.group(1), "")).lower() == "on"
+        )
+        if latency and flag_match is not None and flag_on_now:
             out.append(
                 self._h(
                     CauseCategory.FEATURE_FLAG_REGRESSION,
                     svc,
-                    0.85,
+                    0.85 * _recency(latency),
                     f"{svc} p95 latency rose after {flag_match.group(1)} was enabled ({change}).",
                     _ids(latency, rollouts, slow),
                     "disable_feature_flag",
@@ -164,7 +188,9 @@ class RulesProvider:
                 dep_lat = idx.anomalous(K.LATENCY_P95, dep_svc)
                 dep_err = idx.anomalous(K.ERROR_RATIO, dep_svc)
                 timeouts = bool(_TIMEOUT_WORDS.search(_top_log_text(logs)))
-                conf = 0.55 + (0.2 if (dep_lat or dep_err) else 0.0) + (0.1 if timeouts else 0.0)
+                conf = (
+                    0.55 + (0.2 if (dep_lat or dep_err) else 0.0) + (0.1 if timeouts else 0.0)
+                ) * _recency(deps)
                 out.append(
                     self._h(
                         CauseCategory.DEPENDENCY_FAILURE,
@@ -186,15 +212,39 @@ class RulesProvider:
                     )
                 )
 
+        # R4b: callers' error logs name a dependency with timeout/failure wording, and that
+        # dependency's own latency/errors are anomalous *now*. Works even when outbound-call
+        # metrics are unavailable.
+        log_text = _top_log_text(logs).lower()
+        for dep_svc in data.service_graph.get(svc, []):
+            if dep_svc not in log_text or not _TIMEOUT_WORDS.search(log_text):
+                continue
+            dep_sym = idx.anomalous(K.LATENCY_P95, dep_svc) or idx.anomalous(K.ERROR_RATIO, dep_svc)
+            if dep_sym is None or not dep_sym.signals.get("active", True):
+                continue
+            out.append(
+                self._h(
+                    CauseCategory.DEPENDENCY_FAILURE,
+                    dep_svc,
+                    0.75,
+                    f"{svc} errors are dependency timeouts ('{_top_log_text(logs)[:80]}') and "
+                    f"{dep_sym.summary}. {svc} is a victim, not the cause.",
+                    _ids(logs, dep_sym, errors),
+                    None,
+                    {},
+                    f"No allowlisted runbook fixes an unhealthy {dep_svc}; escalate to its owner.",
+                )
+            )
+
         # R5: memory growth (leak) on a worker/service.
         if memory:
             out.append(
                 self._h(
                     CauseCategory.RESOURCE_SATURATION,
                     svc,
-                    0.75,
-                    f"{svc} resident memory grew from {memory.signals.get('baseline')} to "
-                    f"{memory.signals.get('peak')} bytes — consistent with a leak.",
+                    0.75 * _recency(memory),
+                    f"{svc} resident memory grew from {_mib(memory.signals.get('baseline'))} to "
+                    f"{_mib(memory.signals.get('peak'))} — consistent with a leak.",
                     _ids(memory, pods),
                     "restart_deployment",
                     {"deployment": svc},

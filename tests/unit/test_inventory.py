@@ -53,3 +53,18 @@ def test_dependency_delay_fault(client: TestClient, faults: FaultRegistry) -> No
     start = time.perf_counter()
     assert client.get("/inventory/SKU-001").status_code == 200
     assert time.perf_counter() - start >= 0.15
+
+
+def test_new_stock_index_flag_adds_latency() -> None:
+    client = TestClient(create_app(new_stock_index=True, new_stock_index_delay_ms=120))
+    start = time.perf_counter()
+    assert client.get("/inventory/SKU-001").status_code == 200
+    assert time.perf_counter() - start >= 0.12
+
+
+def test_stock_seed_validation() -> None:
+    from demo_inventory.app import StartupConfigError, validate_stock_seed
+
+    validate_stock_seed("default")
+    with pytest.raises(StartupConfigError, match="invalid stock seed"):
+        validate_stock_seed("corrupt")

@@ -5,6 +5,7 @@ description = "PostgreSQL models, migrations and repositories for SentinelOps"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "sentinel-contracts",
+    "sentinel-policy",
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30",
     "alembic>=1.14",
@@ -13,6 +14,7 @@ dependencies = [
 
 [tool.uv.sources]
 sentinel-contracts = { workspace = true }
+sentinel-policy = { workspace = true }
 
 [build-system]
 requires = ["hatchling>=1.27"]

@@ -1,12 +1,14 @@
 """Demo checkout API.
 
 ``POST /checkout`` validates payment configuration, reserves stock in the
-inventory service and returns an order.
+inventory service, authorizes payment (with timeout + retries) and returns an order.
 
-Supported fault (spec section 15, scenario A):
-  ``bad_config`` — simulates a bad configuration rollout: the payment provider
-  setting resolves to a malformed value, so affected requests fail with 5xx and
-  log a ``ConfigError``. This drives the ``CheckoutHigh5xxRate`` alert.
+Faults:
+  * ``PAYMENT_PROVIDER_URL`` set to a malformed value (env, scenario A) — a bad
+    configuration rollout: every request fails with 500 and logs a ConfigError.
+  * slow payment provider (scenario C) — client timeouts and retries amplify it into
+    504s; checkout is the victim.
+  * ``bad_config`` (admin API) — the same config failure at runtime, Compose demos only.
 """
 
 from __future__ import annotations
@@ -40,9 +42,13 @@ class CheckoutSettings(BaseSettings):
 
     inventory_url: str = Field(default="http://inventory:8000", validation_alias="INVENTORY_URL")
     payment_provider_url: str = Field(
-        default="http://payments.internal/v1", validation_alias="PAYMENT_PROVIDER_URL"
+        default="http://payment:8000/v1", validation_alias="PAYMENT_PROVIDER_URL"
     )
     inventory_timeout_s: float = Field(default=2.0, gt=0, validation_alias="INVENTORY_TIMEOUT_S")
+    payment_timeout_s: float = Field(default=0.8, gt=0, validation_alias="PAYMENT_TIMEOUT_S")
+    payment_attempts: int = Field(default=3, ge=1, le=5, validation_alias="PAYMENT_ATTEMPTS")
+    # Compose-only demo stacks have no payment service; skip the call there.
+    payment_enabled: bool = Field(default=True, validation_alias="PAYMENT_ENABLED")
 
 
 class ConfigError(RuntimeError):
@@ -81,13 +87,14 @@ def create_app(
     orders = meter.create_counter(
         "checkout_orders", unit="{order}", description="Checkout attempts by outcome"
     )
+    dep_errors = meter.create_counter(
+        "checkout_dependency_errors", description="Failed outbound calls by dependency and reason"
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         owned = http_client is None
-        client = http_client or httpx.AsyncClient(
-            base_url=cfg.inventory_url, timeout=cfg.inventory_timeout_s
-        )
+        client = http_client or httpx.AsyncClient(timeout=cfg.inventory_timeout_s)
         app.state.http = client
         try:
             yield
@@ -124,17 +131,20 @@ def create_app(
 
     @app.post("/checkout", response_model=Order, status_code=status.HTTP_201_CREATED)
     async def checkout(req: CheckoutRequest, request: Request) -> Order:
-        _payment_provider()
+        provider = _payment_provider()
         client: httpx.AsyncClient = request.app.state.http
         try:
             resp = await client.post(
-                "/inventory/reserve", json={"sku": req.sku, "quantity": req.quantity}
+                f"{cfg.inventory_url}/inventory/reserve",
+                json={"sku": req.sku, "quantity": req.quantity},
             )
         except httpx.TimeoutException:
+            dep_errors.add(1, {"dependency": "inventory", "reason": "timeout"})
             orders.add(1, {"outcome": "inventory_timeout"})
             logger.error("inventory reservation timed out", extra={"sku": req.sku})
             raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "inventory timeout") from None
         except httpx.HTTPError as exc:
+            dep_errors.add(1, {"dependency": "inventory", "reason": "unreachable"})
             orders.add(1, {"outcome": "inventory_unreachable"})
             logger.error("inventory unreachable", extra={"sku": req.sku, "error": str(exc)})
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, "inventory unavailable") from None
@@ -143,6 +153,7 @@ def create_app(
             orders.add(1, {"outcome": "out_of_stock"})
             raise HTTPException(status.HTTP_409_CONFLICT, "out of stock")
         if resp.is_error:
+            dep_errors.add(1, {"dependency": "inventory", "reason": "error"})
             orders.add(1, {"outcome": "inventory_error"})
             logger.error(
                 "inventory returned error",
@@ -150,10 +161,43 @@ def create_app(
             )
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, "inventory error")
 
+        order_id = str(uuid.uuid4())
+        if cfg.payment_enabled:
+            await _authorize_payment(client, provider, order_id, req)
         orders.add(1, {"outcome": "placed"})
-        return Order(
-            order_id=str(uuid.uuid4()), sku=req.sku, quantity=req.quantity, status="placed"
+        return Order(order_id=order_id, sku=req.sku, quantity=req.quantity, status="placed")
+
+    async def _authorize_payment(
+        client: httpx.AsyncClient, provider: str, order_id: str, req: CheckoutRequest
+    ) -> None:
+        body = {"order_ref": order_id[:64], "amount_cents": 1999 * req.quantity}
+        for attempt in range(1, cfg.payment_attempts + 1):
+            try:
+                resp = await client.post(
+                    f"{provider.rstrip('/')}/payments", json=body, timeout=cfg.payment_timeout_s
+                )
+            except httpx.TimeoutException:
+                dep_errors.add(1, {"dependency": "payment", "reason": "timeout"})
+                logger.warning("payment attempt timed out", extra={"attempt": attempt})
+                continue
+            except httpx.HTTPError as exc:
+                dep_errors.add(1, {"dependency": "payment", "reason": "unreachable"})
+                orders.add(1, {"outcome": "payment_unreachable"})
+                logger.error("payment provider unreachable", extra={"error": str(exc)})
+                raise HTTPException(status.HTTP_502_BAD_GATEWAY, "payment unavailable") from None
+            if resp.is_error:
+                dep_errors.add(1, {"dependency": "payment", "reason": "error"})
+                orders.add(1, {"outcome": "payment_error"})
+                logger.error("payment provider error", extra={"status": resp.status_code})
+                raise HTTPException(status.HTTP_502_BAD_GATEWAY, "payment error")
+            return
+        orders.add(1, {"outcome": "payment_timeout"})
+        logger.error(
+            "payment request timed out after %d attempts",
+            cfg.payment_attempts,
+            extra={"attempts": cfg.payment_attempts},
         )
+        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "payment timeout")
 
     return app
 

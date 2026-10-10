@@ -39,3 +39,9 @@ scrape_configs:
   - job_name: tempo
     static_configs:
       - targets: ["tempo:3200"]
+
+  # kube-state-metrics in the kind cluster (namespace-scoped), via the node's NodePort.
+  - job_name: kube-state-metrics
+    honor_labels: true
+    static_configs:
+      - targets: ["sentinelops-control-plane:30080"]

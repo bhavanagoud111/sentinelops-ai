@@ -131,6 +131,15 @@ async def apply_event(
             cause_event_id=event.event_id,
         )
 
+    if (
+        decision is Decision.IGNORE
+        and resolved_row is not None
+        and event.status.value == "resolved"
+    ):
+        # The alert cleared after the incident was already closed: record it, no transition.
+        resolved_row.alert_active = False
+        row = resolved_row
+
     if row is not None:
         await session.execute(
             update(AlertEventRow)

@@ -64,6 +64,38 @@ groups:
           description: "inventory p95 latency is {{ $value | humanizeDuration }}."
           runbook_url: "docs/runbooks.md#inventory-high-latency"
 
+      # Scenario D — pods crash-looping (typically after a bad rollout).
+      - alert: DeploymentCrashLooping
+        expr: >
+          max by (service) (
+            label_replace(
+              kube_pod_container_status_waiting_reason{namespace="sentinelops-demo", reason="CrashLoopBackOff"},
+              "service", "$1", "container", "(.+)"
+            )
+          ) > 0
+        for: 30s
+        labels:
+          severity: critical
+          scenario: D
+        annotations:
+          summary: "{{ $labels.service }} pods crash-looping"
+          description: "At least one {{ $labels.service }} container is in CrashLoopBackOff."
+          runbook_url: "docs/runbooks.md#deployment-crash-looping"
+
+      # Scenario E — worker memory growth.
+      - alert: WorkerMemoryHigh
+        expr: max by (service_name) (process_resident_memory_bytes{service_name="worker"}) > 300 * 1024 * 1024
+        for: 1m
+        labels:
+          severity: high
+          service: worker
+          team: fulfilment
+          scenario: E
+        annotations:
+          summary: "worker resident memory above 300 MiB"
+          description: "worker RSS is {{ $value | humanize1024 }}B."
+          runbook_url: "docs/runbooks.md#worker-memory-high"
+
   - name: platform.alerts
     rules:
       - alert: TelemetryPipelineDown

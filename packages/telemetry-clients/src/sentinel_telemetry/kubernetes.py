@@ -83,10 +83,13 @@ class KubernetesReadClient:
                 }
             )
             prev = rs
+        live_env = _env(dep.spec.template)
         return {
             "deployment": deployment,
             "current_revision": int((dep.metadata.annotations or {}).get(REVISION, "0")),
             "revisions": revisions[-10:],
+            # Feature flags as deployed right now (a change may since have been reverted).
+            "current_env": {k: v for k, v in live_env.items() if k.startswith("FEATURE_")},
         }
 
     def _pod_status(self, namespace: str, deployment: str) -> dict[str, Any]:
@@ -95,25 +98,55 @@ class KubernetesReadClient:
         pods = self.core.list_namespaced_pod(namespace, label_selector=selector).items
         restarts = 0
         waiting: set[str] = set()
+        terminated: set[str] = set()
         ready = 0
+        crash_looping = False
+        oom_killed = False
+        per_pod: list[dict[str, Any]] = []
         for p in pods:
-            statuses = p.status.container_statuses or []
+            statuses = p.status.container_statuses or [] if p.status else []
             if statuses and all(cs.ready for cs in statuses):
                 ready += 1
             for cs in statuses:
-                restarts += cs.restart_count or 0
-                if cs.state and cs.state.waiting and cs.state.waiting.reason:
-                    waiting.add(cs.state.waiting.reason)
-        reasons = sorted(waiting)
+                n = cs.restart_count or 0
+                restarts += n
+                w = cs.state.waiting.reason if cs.state and cs.state.waiting else None
+                last = (
+                    cs.last_state.terminated if cs.last_state and cs.last_state.terminated else None
+                )
+                if w:
+                    waiting.add(w)
+                if last and last.reason:
+                    terminated.add(last.reason)
+                # Kubernetes cycles Running -> Error -> CrashLoopBackOff; a single sample can
+                # land in any phase, so judge by restart count and the last termination too.
+                if n >= 2 and (
+                    w == "CrashLoopBackOff" or (last and last.exit_code not in (0, None))
+                ):
+                    crash_looping = True
+                if last and last.reason == "OOMKilled":
+                    oom_killed = True
+                per_pod.append(
+                    {
+                        "pod": p.metadata.name if p.metadata else "?",
+                        "ready": bool(cs.ready),
+                        "restarts": n,
+                        "waiting": w,
+                        "last_terminated": last.reason if last else None,
+                        "last_exit_code": last.exit_code if last else None,
+                    }
+                )
         return {
             "desired": dep.spec.replicas or 0,
             "ready": ready,
             "pods": len(pods),
             "restarts": restarts,
-            "waiting_reasons": reasons,
-            "anomalous": "CrashLoopBackOff" in reasons
-            or "ImagePullBackOff" in reasons
-            or restarts >= 3,
+            "waiting_reasons": sorted(waiting),
+            "last_terminated_reasons": sorted(terminated),
+            "crash_looping": crash_looping,
+            "oom_killed": oom_killed,
+            "containers": per_pod[:10],
+            "anomalous": crash_looping or oom_killed or "ImagePullBackOff" in waiting,
         }
 
     async def rollouts(self, namespace: str, deployment: str) -> dict[str, Any]:

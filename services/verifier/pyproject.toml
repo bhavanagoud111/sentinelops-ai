@@ -1,0 +1,23 @@
+[project]
+name = "sentinel-verifier"
+version = "0.1.0"
+description = "Post-remediation recovery verification"
+requires-python = ">=3.12,<3.13"
+dependencies = ["sentinel-common", "sentinel-storage", "sentinel-messaging", "sentinel-contracts", "sentinel-investigator"]
+
+[project.scripts]
+sentinel-verifier = "sentinel_verifier.main:main"
+
+[tool.uv.sources]
+sentinel-common = { workspace = true }
+sentinel-storage = { workspace = true }
+sentinel-messaging = { workspace = true }
+sentinel-contracts = { workspace = true }
+sentinel-investigator = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentinel_verifier"]

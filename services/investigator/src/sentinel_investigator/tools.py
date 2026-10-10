@@ -232,9 +232,10 @@ class LiveToolbox:
                 prof,
             )
         if kind is EvidenceKind.DEPENDENCY_CALLS:
+            # Services count failed outbound calls explicitly (timeouts are not always
+            # visible in client duration metrics): <svc>_dependency_errors_total{dependency}.
             q_err = (
-                "sum by (server_address) (rate(http_client_request_duration_seconds_count"
-                f'{{{sel},error_type!=""}}[1m]))'
+                f'sum by (dependency) (rate({{__name__=~".+_dependency_errors_total",{sel}}}[1m]))'
             )
             q_lat = (
                 "histogram_quantile(0.95, sum by (server_address, le) "
@@ -242,13 +243,13 @@ class LiveToolbox:
             )
             errors = signals.per_label_profile(
                 await self.prom.query_range(q_err, ctx.start, ctx.end, 15),
-                "server_address",
+                "dependency",
                 abs_threshold=0.1,
             )
             latency = signals.per_label_profile(
                 await self.prom.query_range(q_lat, ctx.start, ctx.end, 15),
                 "server_address",
-                abs_threshold=1.0,
+                abs_threshold=0.5,
             )
             deps = sorted(set(errors) | set(latency))
             sig: dict[str, Any] = {
@@ -270,6 +271,9 @@ class LiveToolbox:
             ]
             sig["anomalous"] = bool(bad)
             sig["degraded_dependencies"] = bad
+            sig["active"] = any(
+                errors.get(d, {}).get("active") or latency.get(d, {}).get("active") for d in bad
+            )
             return _ev(
                 ctx,
                 kind,

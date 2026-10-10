@@ -35,3 +35,27 @@ Inhibits service alerts (they would be unreliable).
 
 1. `make ps` / `make logs SERVICE=otel-collector`.
 2. Validate collector config; restart the collector.
+
+## Payment provider slowdown (scenario C)
+**Alert:** `CheckoutHigh5xxRate` on checkout — but the cause is upstream.
+1. Investigation shows checkout → payment calls degraded (client timeouts, retries) and
+   payment p95 latency elevated; checkout logs `payment request timed out after 3 attempts`.
+2. Checkout is the victim. No allowlisted runbook fixes an external provider — SentinelOps
+   escalates (NEEDS_HUMAN) instead of guessing (restarting checkout would not help).
+3. Human options: fail over provider, reduce retries / add a circuit breaker, communicate.
+
+## Deployment crash looping
+**Alert:** `DeploymentCrashLooping` (critical). **Demo scenario:** D.
+1. Pod status: new ReplicaSet pods in CrashLoopBackOff; old pods still serving
+   (`maxUnavailable: 0`).
+2. Rollout history shows the env/image change of the new revision; logs show
+   `startup failed: invalid stock seed`.
+3. **Remediation:** `rollback_deployment` to the previous revision (approval required).
+4. Verify: ready == desired, no waiting reasons.
+
+## Worker memory high
+**Alert:** `WorkerMemoryHigh` (high). **Demo scenario:** E.
+1. `process_resident_memory_bytes{service_name="worker"}` grows steadily.
+2. **Mitigation:** `restart_deployment` (approval required). This buys time; the leak needs
+   a code fix — keep the incident linked to a follow-up.
+3. Verify: RSS back under 300 MiB.

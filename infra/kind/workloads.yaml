@@ -1,0 +1,282 @@
+# Demo workload (sandbox). Applied by `make kind-up`; images loaded with `kind load`.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout
+  namespace: sentinelops-demo
+  labels: { app.kubernetes.io/name: checkout, app.kubernetes.io/part-of: sentinelops-demo }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector: { matchLabels: { app.kubernetes.io/name: checkout } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: checkout, app.kubernetes.io/part-of: sentinelops-demo }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: checkout
+          image: sentinelops/demo-checkout:dev
+          imagePullPolicy: Never
+          command: ["uvicorn", "--factory", "demo_checkout.app:build", "--host", "0.0.0.0", "--port", "8000"]
+          ports: [{ name: http, containerPort: 8000 }]
+          env:
+            - { name: OTEL_SERVICE_NAME, value: "checkout" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-collector:4318" }
+            - { name: OTEL_METRIC_EXPORT_INTERVAL, value: "5000" }
+            - { name: OTEL_SEMCONV_STABILITY_OPT_IN, value: "http" }
+            - { name: DEPLOYMENT_ENVIRONMENT, value: "local" }
+            - name: FAULT_ADMIN_TOKEN
+              valueFrom: { secretKeyRef: { name: demo-fault-token, key: token } }
+            - { name: INVENTORY_URL, value: "http://inventory:8000" }
+            - { name: PAYMENT_PROVIDER_URL, value: "http://payment:8000/v1" }
+          readinessProbe: { httpGet: { path: /healthz, port: 8000 }, periodSeconds: 5, failureThreshold: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8000 }, periodSeconds: 10, failureThreshold: 3 }
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: checkout, namespace: sentinelops-demo }
+spec:
+  type: NodePort
+  selector: { app.kubernetes.io/name: checkout }
+  ports: [{ name: http, port: 8000, targetPort: 8000, nodePort: 30081 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory
+  namespace: sentinelops-demo
+  labels: { app.kubernetes.io/name: inventory, app.kubernetes.io/part-of: sentinelops-demo }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector: { matchLabels: { app.kubernetes.io/name: inventory } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: inventory, app.kubernetes.io/part-of: sentinelops-demo }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: inventory
+          image: sentinelops/demo-inventory:dev
+          imagePullPolicy: Never
+          command: ["uvicorn", "--factory", "demo_inventory.app:build", "--host", "0.0.0.0", "--port", "8000"]
+          ports: [{ name: http, containerPort: 8000 }]
+          env:
+            - { name: OTEL_SERVICE_NAME, value: "inventory" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-collector:4318" }
+            - { name: OTEL_METRIC_EXPORT_INTERVAL, value: "5000" }
+            - { name: OTEL_SEMCONV_STABILITY_OPT_IN, value: "http" }
+            - { name: DEPLOYMENT_ENVIRONMENT, value: "local" }
+            - name: FAULT_ADMIN_TOKEN
+              valueFrom: { secretKeyRef: { name: demo-fault-token, key: token } }
+            - { name: FEATURE_NEW_STOCK_INDEX, value: "off" }
+            - { name: INVENTORY_STOCK_SEED, value: "default" }
+          readinessProbe: { httpGet: { path: /healthz, port: 8000 }, periodSeconds: 5, failureThreshold: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8000 }, periodSeconds: 10, failureThreshold: 3 }
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: inventory, namespace: sentinelops-demo }
+spec:
+  type: NodePort
+  selector: { app.kubernetes.io/name: inventory }
+  ports: [{ name: http, port: 8000, targetPort: 8000, nodePort: 30082 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment
+  namespace: sentinelops-demo
+  labels: { app.kubernetes.io/name: payment, app.kubernetes.io/part-of: sentinelops-demo }
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector: { matchLabels: { app.kubernetes.io/name: payment } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: payment, app.kubernetes.io/part-of: sentinelops-demo }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: payment
+          image: sentinelops/demo-payment:dev
+          imagePullPolicy: Never
+          command: ["uvicorn", "--factory", "demo_payment.app:build", "--host", "0.0.0.0", "--port", "8000"]
+          ports: [{ name: http, containerPort: 8000 }]
+          env:
+            - { name: OTEL_SERVICE_NAME, value: "payment" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-collector:4318" }
+            - { name: OTEL_METRIC_EXPORT_INTERVAL, value: "5000" }
+            - { name: OTEL_SEMCONV_STABILITY_OPT_IN, value: "http" }
+            - { name: DEPLOYMENT_ENVIRONMENT, value: "local" }
+            - name: FAULT_ADMIN_TOKEN
+              valueFrom: { secretKeyRef: { name: demo-fault-token, key: token } }
+          readinessProbe: { httpGet: { path: /healthz, port: 8000 }, periodSeconds: 5, failureThreshold: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8000 }, periodSeconds: 10, failureThreshold: 3 }
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: payment, namespace: sentinelops-demo }
+spec:
+  type: NodePort
+  selector: { app.kubernetes.io/name: payment }
+  ports: [{ name: http, port: 8000, targetPort: 8000, nodePort: 30083 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: sentinelops-demo
+  labels: { app.kubernetes.io/name: worker, app.kubernetes.io/part-of: sentinelops-demo }
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector: { matchLabels: { app.kubernetes.io/name: worker } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: worker, app.kubernetes.io/part-of: sentinelops-demo }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: worker
+          image: sentinelops/demo-worker:dev
+          imagePullPolicy: Never
+          command: ["uvicorn", "--factory", "demo_worker.app:build", "--host", "0.0.0.0", "--port", "8000"]
+          ports: [{ name: http, containerPort: 8000 }]
+          env:
+            - { name: OTEL_SERVICE_NAME, value: "worker" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-collector:4318" }
+            - { name: OTEL_METRIC_EXPORT_INTERVAL, value: "5000" }
+            - { name: OTEL_SEMCONV_STABILITY_OPT_IN, value: "http" }
+            - { name: DEPLOYMENT_ENVIRONMENT, value: "local" }
+            - name: FAULT_ADMIN_TOKEN
+              valueFrom: { secretKeyRef: { name: demo-fault-token, key: token } }
+          readinessProbe: { httpGet: { path: /healthz, port: 8000 }, periodSeconds: 5, failureThreshold: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8000 }, periodSeconds: 10, failureThreshold: 3 }
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: worker, namespace: sentinelops-demo }
+spec:
+  type: NodePort
+  selector: { app.kubernetes.io/name: worker }
+  ports: [{ name: http, port: 8000, targetPort: 8000, nodePort: 30084 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  namespace: sentinelops-demo
+  labels: { app.kubernetes.io/name: loadgen, app.kubernetes.io/part-of: sentinelops-demo }
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector: { matchLabels: { app.kubernetes.io/name: loadgen } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: loadgen, app.kubernetes.io/part-of: sentinelops-demo }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: loadgen
+          image: sentinelops/demo-loadgen:dev
+          imagePullPolicy: Never
+          command: ["demo-loadgen"]
+          env:
+            - { name: OTEL_SERVICE_NAME, value: "loadgen" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-collector:4318" }
+            - { name: OTEL_METRIC_EXPORT_INTERVAL, value: "5000" }
+            - { name: OTEL_SEMCONV_STABILITY_OPT_IN, value: "http" }
+            - { name: DEPLOYMENT_ENVIRONMENT, value: "local" }
+            - name: FAULT_ADMIN_TOKEN
+              valueFrom: { secretKeyRef: { name: demo-fault-token, key: token } }
+            - { name: CHECKOUT_URL, value: "http://checkout:8000" }
+            - { name: INVENTORY_URL, value: "http://inventory:8000" }
+            - { name: LOADGEN_RPS, value: "8" }
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]

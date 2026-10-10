@@ -1,0 +1,82 @@
+{
+  "additionalProperties": false,
+  "description": "Published to ``sentinel.approvals.v1`` on request and decision.",
+  "properties": {
+    "actor": {
+      "title": "Actor",
+      "type": "string"
+    },
+    "approval_id": {
+      "format": "uuid",
+      "title": "Approval Id",
+      "type": "string"
+    },
+    "event_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "incident_id": {
+      "format": "uuid",
+      "title": "Incident Id",
+      "type": "string"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "params": {
+      "additionalProperties": true,
+      "title": "Params",
+      "type": "object"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "runbook_id": {
+      "title": "Runbook Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "expired",
+        "consumed"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_id",
+    "approval_id",
+    "incident_id",
+    "runbook_id",
+    "params",
+    "status",
+    "actor",
+    "occurred_at"
+  ],
+  "title": "ApprovalEvent",
+  "type": "object"
+}

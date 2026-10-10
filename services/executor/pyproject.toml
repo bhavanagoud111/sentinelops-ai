@@ -1,0 +1,23 @@
+[project]
+name = "sentinel-executor"
+version = "0.1.0"
+description = "Bounded Kubernetes executor for allowlisted, approved runbooks"
+requires-python = ">=3.12,<3.13"
+dependencies = ["sentinel-common", "sentinel-storage", "sentinel-messaging", "sentinel-contracts", "sentinel-policy", "kubernetes>=31.0"]
+
+[project.scripts]
+sentinel-executor = "sentinel_executor.main:main"
+
+[tool.uv.sources]
+sentinel-common = { workspace = true }
+sentinel-storage = { workspace = true }
+sentinel-messaging = { workspace = true }
+sentinel-contracts = { workspace = true }
+sentinel-policy = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentinel_executor"]

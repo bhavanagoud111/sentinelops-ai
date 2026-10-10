@@ -122,7 +122,8 @@ def build_graph(deps: Deps) -> Any:
         callees = deps.service_graph.get(inc.service, [])
         scope = [inc.service, *[c for c in callees if c != inc.service]]
         end = now()
-        start = min(inc.first_seen - deps.limits.lookback, end - timedelta(minutes=15))
+        # Anchor at the latest occurrence: a reopened incident's first_seen can be old.
+        start = min(inc.last_seen - deps.limits.lookback, end - timedelta(minutes=15))
         start = max(start, end - timedelta(hours=6))
         crit = deps.criticality.get(inc.service, "unknown")
         impact = (
@@ -259,6 +260,7 @@ def build_graph(deps: Deps) -> Any:
             state["findings"],
             deps.criticality,
             dependents_of(deps.service_graph),
+            state["evidence"],
         )
         if proposal:
             outcome = InvestigationOutcome.PROPOSED

@@ -11,7 +11,14 @@ from sentinel_contracts.events import (
     AlertStatus,
     Severity,
 )
-from sentinel_contracts.incident_events import IncidentEvent, IncidentEventKind, InvestigationEvent
+from sentinel_contracts.incident_events import (
+    ActionEvent,
+    ActionEventKind,
+    ApprovalEvent,
+    IncidentEvent,
+    IncidentEventKind,
+    InvestigationEvent,
+)
 from sentinel_contracts.incidents import (
     ALLOWED_TRANSITIONS,
     TERMINAL_STATUSES,
@@ -28,9 +35,12 @@ __all__ = [
     "ALLOWED_TRANSITIONS",
     "SCHEMA_VERSION",
     "TERMINAL_STATUSES",
+    "ActionEvent",
+    "ActionEventKind",
     "AlertEvent",
     "AlertSource",
     "AlertStatus",
+    "ApprovalEvent",
     "Incident",
     "IncidentEvent",
     "IncidentEventKind",

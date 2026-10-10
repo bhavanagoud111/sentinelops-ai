@@ -1,0 +1,83 @@
+{
+  "$defs": {
+    "ActionEventKind": {
+      "enum": [
+        "requested",
+        "blocked",
+        "started",
+        "succeeded",
+        "failed",
+        "verified",
+        "verification_failed"
+      ],
+      "title": "ActionEventKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Published to ``sentinel.actions.v1`` across the execution lifecycle.",
+  "properties": {
+    "actor": {
+      "title": "Actor",
+      "type": "string"
+    },
+    "approval_id": {
+      "format": "uuid",
+      "title": "Approval Id",
+      "type": "string"
+    },
+    "details": {
+      "additionalProperties": true,
+      "default": {},
+      "title": "Details",
+      "type": "object"
+    },
+    "event_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:/-]+$",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "execution_id": {
+      "format": "uuid",
+      "title": "Execution Id",
+      "type": "string"
+    },
+    "incident_id": {
+      "format": "uuid",
+      "title": "Incident Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/ActionEventKind"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "runbook_id": {
+      "title": "Runbook Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "event_id",
+    "kind",
+    "execution_id",
+    "incident_id",
+    "approval_id",
+    "runbook_id",
+    "actor",
+    "occurred_at"
+  ],
+  "title": "ActionEvent",
+  "type": "object"
+}

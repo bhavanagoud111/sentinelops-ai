@@ -1,0 +1,359 @@
+{
+ "scenario": "C",
+ "started_at": "2026-10-10T03:41:53.720717+00:00",
+ "incident_id": "045b4449-43e1-4506-acb0-ca4200b8e07e",
+ "investigation": "abstained",
+ "top": null,
+ "proposal": null,
+ "diagnosis_correct": false,
+ "outcome_expected": false,
+ "runbook_expected": true,
+ "final_status": "OPEN",
+ "timings_s": {
+  "fault injected": 0.1,
+  "incident open (045b4449-43e1-4506-acb0-ca4200b8e07e, OPEN)": 99.4,
+  "investigation abstained": 99.4
+ },
+ "timeline": [
+  {
+   "at": "2026-10-10T02:26:22.759535Z",
+   "kind": "alert",
+   "title": "CheckoutHigh5xxRate firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:e32b7ee3c67a39e67a83d8785ea078e7",
+    "severity": "critical"
+   }
+  },
+  {
+   "at": "2026-10-10T02:26:22.963120Z",
+   "kind": "transition",
+   "title": "\u2205 \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert CheckoutHigh5xxRate firing",
+    "correlation_id": "alertmanager:e32b7ee3c67a39e67a83d8785ea078e7"
+   }
+  },
+  {
+   "at": "2026-10-10T02:28:22.754458Z",
+   "kind": "alert",
+   "title": "CheckoutHigh5xxRate resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:f3de847fa52b382f65d0563fac45a6ef",
+    "severity": "critical"
+   }
+  },
+  {
+   "at": "2026-10-10T02:39:58.542726Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:e32b7ee3c67a39e67a83d8785ea078e7"
+   }
+  },
+  {
+   "at": "2026-10-10T02:39:58.542726Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:e32b7ee3c67a39e67a83d8785ea078e7"
+   }
+  },
+  {
+   "at": "2026-10-10T02:46:10.491827Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 NEEDS_HUMAN",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation orphaned",
+    "correlation_id": "087645c8-c874-41a9-9b8c-4b76a90a4165"
+   }
+  },
+  {
+   "at": "2026-10-10T02:46:31.754402Z",
+   "kind": "transition",
+   "title": "NEEDS_HUMAN \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "api:0a5b0e1861854ce6"
+   }
+  },
+  {
+   "at": "2026-10-10T02:46:31.819993Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 NEEDS_HUMAN",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation escalated",
+    "correlation_id": "api:0a5b0e1861854ce6"
+   }
+  },
+  {
+   "at": "2026-10-10T03:09:01.348701Z",
+   "kind": "transition",
+   "title": "NEEDS_HUMAN \u2192 RESOLVED",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "resolved by human: closing stale incident before scenario A",
+    "correlation_id": "api:ed0a85f9a7994493"
+   }
+  },
+  {
+   "at": "2026-10-10T03:10:52.756944Z",
+   "kind": "alert",
+   "title": "CheckoutHigh5xxRate firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:334963f1fb020da38117db598a5d4e6e",
+    "severity": "critical"
+   }
+  },
+  {
+   "at": "2026-10-10T03:10:52.979375Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert CheckoutHigh5xxRate recurred within reopen window",
+    "correlation_id": "alertmanager:334963f1fb020da38117db598a5d4e6e"
+   }
+  },
+  {
+   "at": "2026-10-10T03:10:53.196161Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:334963f1fb020da38117db598a5d4e6e"
+   }
+  },
+  {
+   "at": "2026-10-10T03:10:53.196161Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:334963f1fb020da38117db598a5d4e6e"
+   }
+  },
+  {
+   "at": "2026-10-10T03:10:53.373068Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:334963f1fb020da38117db598a5d4e6e"
+   }
+  },
+  {
+   "at": "2026-10-10T03:16:44.899277Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 REMEDIATING",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "executing rollback_deployment (approved by anna.approver)",
+    "correlation_id": "f77f52c0-6ec1-4de9-badd-96807314841b"
+   }
+  },
+  {
+   "at": "2026-10-10T03:16:53.056316Z",
+   "kind": "transition",
+   "title": "REMEDIATING \u2192 VERIFYING",
+   "actor": "system:executor",
+   "details": {
+    "reason": "rollback_deployment applied in 8.0s; verifying",
+    "correlation_id": "f77f52c0-6ec1-4de9-badd-96807314841b"
+   }
+  },
+  {
+   "at": "2026-10-10T03:17:43.228555Z",
+   "kind": "transition",
+   "title": "VERIFYING \u2192 RESOLVED",
+   "actor": "system:verifier",
+   "details": {
+    "reason": "recovery verified: checkout 5xx ratio peak 100.0% (baseline 100.0%, onset None) (still above threshold: False); pods 2/2 ready, waiting=[]",
+    "correlation_id": "f77f52c0-6ec1-4de9-badd-96807314841b"
+   }
+  },
+  {
+   "at": "2026-10-10T03:28:32.745091Z",
+   "kind": "alert",
+   "title": "CheckoutHigh5xxRate firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:b91b8479edbfe5d2667374531b694c1d",
+    "severity": "critical"
+   }
+  },
+  {
+   "at": "2026-10-10T03:28:32.845530Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert CheckoutHigh5xxRate recurred within reopen window",
+    "correlation_id": "alertmanager:b91b8479edbfe5d2667374531b694c1d"
+   }
+  },
+  {
+   "at": "2026-10-10T03:28:33.059786Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:b91b8479edbfe5d2667374531b694c1d"
+   }
+  },
+  {
+   "at": "2026-10-10T03:28:33.059786Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:b91b8479edbfe5d2667374531b694c1d"
+   }
+  },
+  {
+   "at": "2026-10-10T03:28:33.230655Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 AWAITING_APPROVAL",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation proposed",
+    "correlation_id": "alertmanager:b91b8479edbfe5d2667374531b694c1d"
+   }
+  },
+  {
+   "at": "2026-10-10T03:30:32.744069Z",
+   "kind": "alert",
+   "title": "CheckoutHigh5xxRate resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:23147453d2b23b6a7852056325c39b0f",
+    "severity": "critical"
+   }
+  },
+  {
+   "at": "2026-10-10T03:38:24.166507Z",
+   "kind": "transition",
+   "title": "AWAITING_APPROVAL \u2192 NEEDS_HUMAN",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "proposal dismissed by human",
+    "correlation_id": "api:4d839668a6fb4bf3"
+   }
+  },
+  {
+   "at": "2026-10-10T03:38:24.166507Z",
+   "kind": "transition",
+   "title": "NEEDS_HUMAN \u2192 RESOLVED",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "resolved by human: closing stale incident before scenario C",
+    "correlation_id": "api:4d839668a6fb4bf3"
+   }
+  },
+  {
+   "at": "2026-10-10T03:39:52.747503Z",
+   "kind": "alert",
+   "title": "CheckoutHigh5xxRate firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:48f6404393e8b4991dfafac7127e18a1",
+    "severity": "critical"
+   }
+  },
+  {
+   "at": "2026-10-10T03:39:52.876253Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert CheckoutHigh5xxRate recurred within reopen window",
+    "correlation_id": "alertmanager:48f6404393e8b4991dfafac7127e18a1"
+   }
+  },
+  {
+   "at": "2026-10-10T03:39:53.090319Z",
+   "kind": "transition",
+   "title": "OPEN \u2192 TRIAGING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation started",
+    "correlation_id": "alertmanager:48f6404393e8b4991dfafac7127e18a1"
+   }
+  },
+  {
+   "at": "2026-10-10T03:39:53.090319Z",
+   "kind": "transition",
+   "title": "TRIAGING \u2192 INVESTIGATING",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "collecting evidence (rules)",
+    "correlation_id": "alertmanager:48f6404393e8b4991dfafac7127e18a1"
+   }
+  },
+  {
+   "at": "2026-10-10T03:39:53.245285Z",
+   "kind": "transition",
+   "title": "INVESTIGATING \u2192 NEEDS_HUMAN",
+   "actor": "system:investigator",
+   "details": {
+    "reason": "investigation abstained",
+    "correlation_id": "alertmanager:48f6404393e8b4991dfafac7127e18a1"
+   }
+  },
+  {
+   "at": "2026-10-10T03:41:52.770972Z",
+   "kind": "alert",
+   "title": "CheckoutHigh5xxRate resolved",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:92b095fa2703f0aa91d6eac9b281eb30",
+    "severity": "critical"
+   }
+  },
+  {
+   "at": "2026-10-10T03:41:53.747083Z",
+   "kind": "transition",
+   "title": "NEEDS_HUMAN \u2192 RESOLVED",
+   "actor": "oscar.operator",
+   "details": {
+    "reason": "resolved by human: closing stale incident before scenario C",
+    "correlation_id": "api:2c3c69bda59c449f"
+   }
+  },
+  {
+   "at": "2026-10-10T03:43:32.747938Z",
+   "kind": "alert",
+   "title": "CheckoutHigh5xxRate firing",
+   "actor": "source:alertmanager",
+   "details": {
+    "event_id": "alertmanager:cb684a5a4c94b1c35d417eb3c4cfc8c9",
+    "severity": "critical"
+   }
+  },
+  {
+   "at": "2026-10-10T03:43:32.921168Z",
+   "kind": "transition",
+   "title": "RESOLVED \u2192 OPEN",
+   "actor": "system:correlator",
+   "details": {
+    "reason": "alert CheckoutHigh5xxRate recurred within reopen window",
+    "correlation_id": "alertmanager:cb684a5a4c94b1c35d417eb3c4cfc8c9"
+   }
+  }
+ ]
+}

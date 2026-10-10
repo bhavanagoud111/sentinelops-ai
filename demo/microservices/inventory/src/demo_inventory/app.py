@@ -1,8 +1,12 @@
 """Demo inventory API.
 
-Supported fault (spec section 15, scenario B):
-  ``dependency_delay`` — simulates a slow backing store by sleeping ``delay_ms``
-  before answering, which surfaces as inventory latency and checkout p95 growth.
+Faults:
+  * ``FEATURE_NEW_STOCK_INDEX=on`` (env, scenario B) — a "new index" code path that
+    adds ``NEW_STOCK_INDEX_DELAY_MS`` latency. Shipped via a rollout, fixed by
+    turning the flag off.
+  * ``INVENTORY_STOCK_SEED`` other than ``default`` (env, scenario D) — invalid seed
+    data makes the process exit at startup → CrashLoopBackOff after a rollout.
+  * ``dependency_delay`` (admin API) — slow backing store, for Compose-only demos.
 """
 
 from __future__ import annotations
@@ -67,7 +71,22 @@ class Stock:
             return self._levels[sku]
 
 
-def create_app(*, faults: FaultRegistry | None = None, fault_token: str | None = None) -> FastAPI:
+class StartupConfigError(RuntimeError):
+    pass
+
+
+def validate_stock_seed(seed: str) -> None:
+    if seed != "default":
+        raise StartupConfigError(f"startup failed: invalid stock seed {seed!r}")
+
+
+def create_app(
+    *,
+    faults: FaultRegistry | None = None,
+    fault_token: str | None = None,
+    new_stock_index: bool = False,
+    new_stock_index_delay_ms: int = 1200,
+) -> FastAPI:
     registry = faults or FaultRegistry([FAULT_DEPENDENCY_DELAY])
     stock = Stock(INITIAL_STOCK)
     meter = metrics.get_meter("demo_inventory")
@@ -81,6 +100,11 @@ def create_app(*, faults: FaultRegistry | None = None, fault_token: str | None =
     mount_if_enabled(app.include_router, registry, fault_token)
 
     async def _maybe_delay() -> None:
+        if new_stock_index:
+            with tracer.start_as_current_span("inventory.new_stock_index.lookup") as span:
+                span.set_attribute("feature_flag.key", "FEATURE_NEW_STOCK_INDEX")
+                span.set_attribute("feature_flag.variant", "on")
+                await asyncio.sleep(new_stock_index_delay_ms / 1000)
         spec = registry.triggered(FAULT_DEPENDENCY_DELAY)
         if spec and spec.delay_ms:
             with tracer.start_as_current_span("inventory.store.query") as span:
@@ -127,8 +151,18 @@ def build() -> FastAPI:  # pragma: no cover - process entrypoint
     from sentinel_common import TelemetrySettings, setup_telemetry
 
     handle = setup_telemetry(TelemetrySettings())
+    try:
+        validate_stock_seed(os.environ.get("INVENTORY_STOCK_SEED", "default"))
+    except StartupConfigError:
+        logger.exception("inventory cannot start")
+        handle.shutdown()  # flush the error log before exiting
+        raise SystemExit(3) from None
 
-    app = create_app(fault_token=os.environ.get("FAULT_ADMIN_TOKEN"))
+    app = create_app(
+        fault_token=os.environ.get("FAULT_ADMIN_TOKEN"),
+        new_stock_index=os.environ.get("FEATURE_NEW_STOCK_INDEX", "off").lower() == "on",
+        new_stock_index_delay_ms=int(os.environ.get("NEW_STOCK_INDEX_DELAY_MS", "1200")),
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:

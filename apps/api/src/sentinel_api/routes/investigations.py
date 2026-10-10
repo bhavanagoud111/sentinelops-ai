@@ -8,12 +8,12 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sentinel_contracts import IncidentEventKind, IncidentStatus
 from sentinel_storage import audit
 from sentinel_storage import incidents as repo
 from sentinel_storage.db import transaction
-from sentinel_storage.models import EvidenceRow, HypothesisRow, InvestigationRow
+from sentinel_storage.models import ApprovalRow, EvidenceRow, HypothesisRow, InvestigationRow
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -244,3 +244,76 @@ async def list_evidence(incident_id: uuid.UUID, session: DbSession, _: Reader) -
         )
         for r in rows
     ]
+
+
+class ResolveRequest(BaseModel):
+    reason: str = Field(min_length=3, max_length=1000)
+
+
+@router.post("/incidents/{incident_id}/resolve", response_model=InvestigateAccepted)
+async def resolve_incident(
+    incident_id: uuid.UUID, body: ResolveRequest, principal: Investigator, request: Request
+) -> InvestigateAccepted:
+    """Human closure of an incident that SentinelOps handed over (NEEDS_HUMAN/REJECTED/FAILED)."""
+    sessions: async_sessionmaker[AsyncSession] = request.app.state.sessions
+    now = datetime.now(UTC)
+    async with transaction(sessions) as tx:
+        try:
+            row = await repo.get(tx, incident_id, lock=True)
+        except repo.IncidentNotFoundError:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "incident not found") from None
+        current = IncidentStatus(row.status)
+        allowed = {
+            IncidentStatus.NEEDS_HUMAN,
+            IncidentStatus.REJECTED,
+            IncidentStatus.FAILED,
+            IncidentStatus.AWAITING_APPROVAL,  # human dismisses the proposal
+        }
+        if current not in allowed:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"incident is {current.value}; humans resolve from "
+                f"{sorted(s.value for s in allowed)}",
+            )
+        corr = f"api:{uuid.uuid4().hex[:16]}"
+        if current is IncidentStatus.AWAITING_APPROVAL:
+            for a in (
+                await tx.scalars(
+                    select(ApprovalRow)
+                    .where(
+                        ApprovalRow.incident_id == incident_id,
+                        ApprovalRow.status.in_(["pending", "approved"]),
+                    )
+                    .with_for_update()
+                )
+            ).all():
+                a.status = "expired"
+            await repo.transition(
+                tx,
+                incident_id,
+                IncidentStatus.NEEDS_HUMAN,
+                actor=principal.subject,
+                reason="proposal dismissed by human",
+                correlation_id=corr,
+                at=now,
+            )
+        if current is IncidentStatus.FAILED:
+            await repo.transition(
+                tx,
+                incident_id,
+                IncidentStatus.NEEDS_HUMAN,
+                actor=principal.subject,
+                reason="taken over by human",
+                correlation_id=corr,
+                at=now,
+            )
+        await repo.transition(
+            tx,
+            incident_id,
+            IncidentStatus.RESOLVED,
+            actor=principal.subject,
+            reason=f"resolved by human: {body.reason}",
+            correlation_id=corr,
+            at=now,
+        )
+    return InvestigateAccepted(incident_id=incident_id, status="RESOLVED", detail="resolved")

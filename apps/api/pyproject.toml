@@ -7,9 +7,12 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn>=0.34",
     "pyjwt>=2.10",
+    "httpx>=0.28",
+    "aiokafka>=0.12",
     "sentinel-contracts",
     "sentinel-common",
     "sentinel-storage",
+    "sentinel-policy",
     "opentelemetry-instrumentation-fastapi>=0.51b0",
 ]
 
@@ -17,6 +20,7 @@ dependencies = [
 sentinel-contracts = { workspace = true }
 sentinel-common = { workspace = true }
 sentinel-storage = { workspace = true }
+sentinel-policy = { workspace = true }
 
 [build-system]
 requires = ["hatchling>=1.27"]

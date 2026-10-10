@@ -8,10 +8,14 @@ members = [
     "demo-faultkit",
     "demo-inventory",
     "demo-loadgen",
+    "demo-payment",
+    "demo-worker",
     "sentinel-api",
     "sentinel-common",
     "sentinel-contracts",
     "sentinel-correlator",
+    "sentinel-executor",
+    "sentinel-faultinjector",
     "sentinel-ingestion",
     "sentinel-investigator",
     "sentinel-messaging",
@@ -20,6 +24,7 @@ members = [
     "sentinel-relay",
     "sentinel-storage",
     "sentinel-telemetry",
+    "sentinel-verifier",
     "sentinelops-ai",
 ]
 
@@ -408,6 +413,46 @@ dependencies = [
 requires-dist = [
     { name = "httpx", specifier = ">=0.28" },
     { name = "pydantic-settings", specifier = ">=2.7" },
+]
+
+[[package]]
+name = "demo-payment"
+version = "0.1.0"
+source = { editable = "demo/microservices/payment" }
+dependencies = [
+    { name = "demo-faultkit" },
+    { name = "fastapi" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "sentinel-common" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "demo-faultkit", editable = "demo/microservices/faultkit" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.51b0" },
+    { name = "sentinel-common", editable = "packages/common" },
+    { name = "uvicorn", specifier = ">=0.34" },
+]
+
+[[package]]
+name = "demo-worker"
+version = "0.1.0"
+source = { editable = "demo/microservices/worker" }
+dependencies = [
+    { name = "demo-faultkit" },
+    { name = "fastapi" },
+    { name = "sentinel-common" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "demo-faultkit", editable = "demo/microservices/faultkit" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "sentinel-common", editable = "packages/common" },
+    { name = "uvicorn", specifier = ">=0.34" },
 ]
 
 [[package]]
@@ -1419,22 +1464,28 @@ name = "sentinel-api"
 version = "0.1.0"
 source = { editable = "apps/api" }
 dependencies = [
+    { name = "aiokafka" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "pyjwt" },
     { name = "sentinel-common" },
     { name = "sentinel-contracts" },
+    { name = "sentinel-policy" },
     { name = "sentinel-storage" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "aiokafka", specifier = ">=0.12" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.28" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.51b0" },
     { name = "pyjwt", specifier = ">=2.10" },
     { name = "sentinel-common", editable = "packages/common" },
     { name = "sentinel-contracts", editable = "packages/contracts" },
+    { name = "sentinel-policy", editable = "packages/policy" },
     { name = "sentinel-storage", editable = "packages/storage" },
     { name = "uvicorn", specifier = ">=0.34" },
 ]
@@ -1486,6 +1537,50 @@ requires-dist = [
     { name = "sentinel-contracts", editable = "packages/contracts" },
     { name = "sentinel-messaging", editable = "packages/messaging" },
     { name = "sentinel-storage", editable = "packages/storage" },
+]
+
+[[package]]
+name = "sentinel-executor"
+version = "0.1.0"
+source = { editable = "services/executor" }
+dependencies = [
+    { name = "kubernetes" },
+    { name = "sentinel-common" },
+    { name = "sentinel-contracts" },
+    { name = "sentinel-messaging" },
+    { name = "sentinel-policy" },
+    { name = "sentinel-storage" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "kubernetes", specifier = ">=31.0" },
+    { name = "sentinel-common", editable = "packages/common" },
+    { name = "sentinel-contracts", editable = "packages/contracts" },
+    { name = "sentinel-messaging", editable = "packages/messaging" },
+    { name = "sentinel-policy", editable = "packages/policy" },
+    { name = "sentinel-storage", editable = "packages/storage" },
+]
+
+[[package]]
+name = "sentinel-faultinjector"
+version = "0.1.0"
+source = { editable = "services/faultinjector" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "kubernetes" },
+    { name = "sentinel-common" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "kubernetes", specifier = ">=31.0" },
+    { name = "sentinel-common", editable = "packages/common" },
+    { name = "uvicorn", specifier = ">=0.34" },
 ]
 
 [[package]]
@@ -1562,18 +1657,24 @@ source = { editable = "services/platform" }
 dependencies = [
     { name = "sentinel-api" },
     { name = "sentinel-correlator" },
+    { name = "sentinel-executor" },
+    { name = "sentinel-faultinjector" },
     { name = "sentinel-ingestion" },
     { name = "sentinel-investigator" },
     { name = "sentinel-relay" },
+    { name = "sentinel-verifier" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "sentinel-api", editable = "apps/api" },
     { name = "sentinel-correlator", editable = "services/correlator" },
+    { name = "sentinel-executor", editable = "services/executor" },
+    { name = "sentinel-faultinjector", editable = "services/faultinjector" },
     { name = "sentinel-ingestion", editable = "services/ingestion" },
     { name = "sentinel-investigator", editable = "services/investigator" },
     { name = "sentinel-relay", editable = "services/relay" },
+    { name = "sentinel-verifier", editable = "services/verifier" },
 ]
 
 [[package]]
@@ -1615,6 +1716,7 @@ dependencies = [
     { name = "asyncpg" },
     { name = "pydantic-settings" },
     { name = "sentinel-contracts" },
+    { name = "sentinel-policy" },
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
 
@@ -1624,6 +1726,7 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.30" },
     { name = "pydantic-settings", specifier = ">=2.7" },
     { name = "sentinel-contracts", editable = "packages/contracts" },
+    { name = "sentinel-policy", editable = "packages/policy" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
 ]
 
@@ -1645,6 +1748,27 @@ requires-dist = [
 ]
 
 [[package]]
+name = "sentinel-verifier"
+version = "0.1.0"
+source = { editable = "services/verifier" }
+dependencies = [
+    { name = "sentinel-common" },
+    { name = "sentinel-contracts" },
+    { name = "sentinel-investigator" },
+    { name = "sentinel-messaging" },
+    { name = "sentinel-storage" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "sentinel-common", editable = "packages/common" },
+    { name = "sentinel-contracts", editable = "packages/contracts" },
+    { name = "sentinel-investigator", editable = "services/investigator" },
+    { name = "sentinel-messaging", editable = "packages/messaging" },
+    { name = "sentinel-storage", editable = "packages/storage" },
+]
+
+[[package]]
 name = "sentinelops-ai"
 version = "0.1.0"
 source = { virtual = "." }
@@ -1653,10 +1777,14 @@ dependencies = [
     { name = "demo-faultkit" },
     { name = "demo-inventory" },
     { name = "demo-loadgen" },
+    { name = "demo-payment" },
+    { name = "demo-worker" },
     { name = "sentinel-api" },
     { name = "sentinel-common" },
     { name = "sentinel-contracts" },
     { name = "sentinel-correlator" },
+    { name = "sentinel-executor" },
+    { name = "sentinel-faultinjector" },
     { name = "sentinel-ingestion" },
     { name = "sentinel-investigator" },
     { name = "sentinel-messaging" },
@@ -1665,6 +1793,7 @@ dependencies = [
     { name = "sentinel-relay" },
     { name = "sentinel-storage" },
     { name = "sentinel-telemetry" },
+    { name = "sentinel-verifier" },
 ]
 
 [package.dev-dependencies]
@@ -1681,10 +1810,14 @@ requires-dist = [
     { name = "demo-faultkit", editable = "demo/microservices/faultkit" },
     { name = "demo-inventory", editable = "demo/microservices/inventory" },
     { name = "demo-loadgen", editable = "demo/microservices/loadgen" },
+    { name = "demo-payment", editable = "demo/microservices/payment" },
+    { name = "demo-worker", editable = "demo/microservices/worker" },
     { name = "sentinel-api", editable = "apps/api" },
     { name = "sentinel-common", editable = "packages/common" },
     { name = "sentinel-contracts", editable = "packages/contracts" },
     { name = "sentinel-correlator", editable = "services/correlator" },
+    { name = "sentinel-executor", editable = "services/executor" },
+    { name = "sentinel-faultinjector", editable = "services/faultinjector" },
     { name = "sentinel-ingestion", editable = "services/ingestion" },
     { name = "sentinel-investigator", editable = "services/investigator" },
     { name = "sentinel-messaging", editable = "packages/messaging" },
@@ -1693,6 +1826,7 @@ requires-dist = [
     { name = "sentinel-relay", editable = "services/relay" },
     { name = "sentinel-storage", editable = "packages/storage" },
     { name = "sentinel-telemetry", editable = "packages/telemetry-clients" },
+    { name = "sentinel-verifier", editable = "services/verifier" },
 ]
 
 [package.metadata.requires-dev]

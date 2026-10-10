@@ -45,6 +45,7 @@ services:
   # ------------------------------------------------------------- demo workload
   inventory:
     <<: *python-service
+    profiles: [compose-workload]
     image: sentinelops/demo-inventory:dev
     build:
       context: ../..
@@ -66,6 +67,7 @@ services:
 
   checkout:
     <<: *python-service
+    profiles: [compose-workload]
     image: sentinelops/demo-checkout:dev
     build:
       context: ../..
@@ -84,6 +86,7 @@ services:
 
   loadgen:
     <<: *python-service
+    profiles: [compose-workload]
     image: sentinelops/demo-loadgen:dev
     build:
       context: ../..
@@ -194,9 +197,52 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       AUTO_INVESTIGATE: "true"
       INVESTIGATION_DEADLINE_S: "120"
+      K8S_READER_KUBECONFIG: /run/secrets/reader_kubeconfig
+    secrets: [reader_kubeconfig]
     depends_on:
       migrate: { condition: service_completed_successfully }
       redpanda: { condition: service_healthy }
+
+  executor:
+    <<: *platform-service
+    command: ["sentinel-executor"]
+    environment:
+      <<: *platform-env
+      OTEL_SERVICE_NAME: sentinel-executor
+      # disabled | recommend_only (default) | sandbox (allowlisted writes to sentinelops-demo)
+      REMEDIATION_MODE: ${REMEDIATION_MODE:-recommend_only}
+      K8S_EXECUTOR_KUBECONFIG: /run/secrets/executor_kubeconfig
+    secrets: [executor_kubeconfig]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redpanda: { condition: service_healthy }
+
+  verifier:
+    <<: *platform-service
+    command: ["sentinel-verifier"]
+    environment:
+      <<: *platform-env
+      OTEL_SERVICE_NAME: sentinel-verifier
+      PROMETHEUS_URL: http://prometheus:9090
+      LOKI_URL: http://loki:3100
+      TEMPO_URL: http://tempo:3200
+      K8S_READER_KUBECONFIG: /run/secrets/reader_kubeconfig
+    secrets: [reader_kubeconfig]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redpanda: { condition: service_healthy }
+
+  faultinjector:
+    <<: *platform-service
+    command: ["uvicorn", "--factory", "sentinel_faultinjector.app:build", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+    environment:
+      <<: *platform-env
+      OTEL_SERVICE_NAME: sentinel-faultinjector
+      K8S_CHAOS_KUBECONFIG: /run/secrets/chaos_kubeconfig
+      FAULTINJECTOR_TOKEN_FILE: /run/secrets/faultinjector_token
+      FAULT_ADMIN_TOKEN: ${FAULT_ADMIN_TOKEN:-local-dev-fault-token}
+    secrets: [chaos_kubeconfig, faultinjector_token]
+    healthcheck: *py-health
 
   api:
     <<: *platform-service
@@ -205,13 +251,33 @@ services:
       <<: *platform-env
       OTEL_SERVICE_NAME: sentinel-api
       JWT_SECRET_FILE: /run/secrets/jwt_secret
+      FAULTINJECTOR_TOKEN_FILE: /run/secrets/faultinjector_token
+      FAULTINJECTOR_URL: http://faultinjector:8000
+      PROMETHEUS_URL: http://prometheus:9090
+      REMEDIATION_MODE: ${REMEDIATION_MODE:-recommend_only}
+      SENTINEL_LLM_PROVIDER: ${SENTINEL_LLM_PROVIDER:-rules}
+      GRAFANA_PUBLIC_URL: http://127.0.0.1:${GRAFANA_PORT:-13000}
       AUTH_DEV_LOGIN: ${AUTH_DEV_LOGIN:-true}
       CORS_ORIGINS: http://127.0.0.1:${DASHBOARD_PORT:-13001},http://localhost:${DASHBOARD_PORT:-13001}
-    secrets: [jwt_secret]
+    secrets: [jwt_secret, faultinjector_token]
     ports: ["127.0.0.1:${API_PORT:-18000}:8000"]
     healthcheck: *py-health
     depends_on:
       migrate: { condition: service_completed_successfully }
+
+  dashboard:
+    image: sentinelops/dashboard:dev
+    build:
+      context: ../..
+      dockerfile: infra/docker/dashboard.Dockerfile
+    ports: ["127.0.0.1:${DASHBOARD_PORT:-13001}:8080"]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+    networks: [sentinelops]
+    depends_on: [api]
 
   # ------------------------------------------------------------- observability
   otel-collector:
@@ -291,8 +357,11 @@ services:
     depends_on: [prometheus, loki, tempo]
 
 networks:
+  # Shared with the kind node so pods and Compose services resolve each other by name.
+  # Created by `make up` (docker network create sentinelops).
   sentinelops:
     name: sentinelops
+    external: true
 
 volumes:
   prometheus-data:
@@ -305,3 +374,12 @@ secrets:
     file: ../../.cache/secrets/ingest_token
   jwt_secret:
     file: ../../.cache/secrets/jwt_secret
+  faultinjector_token:
+    file: ../../.cache/secrets/faultinjector_token
+  # Scoped ServiceAccount kubeconfigs written by scripts/kind-up.sh.
+  reader_kubeconfig:
+    file: ../../.cache/kube/reader.kubeconfig
+  executor_kubeconfig:
+    file: ../../.cache/kube/executor.kubeconfig
+  chaos_kubeconfig:
+    file: ../../.cache/kube/chaos.kubeconfig

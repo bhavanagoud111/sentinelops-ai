@@ -1,0 +1,106 @@
+# Namespace and least-privilege identities for SentinelOps (spec section 11).
+#
+#   sentinel-reader    investigator: read deployments/replicasets/pods/events
+#   sentinel-executor  executor: read + PATCH deployments only (restart/rollback/scale/flag)
+#   sentinel-chaos     fault injector: PATCH deployments (env faults) — demo only
+#
+# None of them can create/delete resources, exec into pods, read secrets, or act
+# outside the sentinelops-demo namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentinelops-demo
+  labels:
+    sentinelops.io/sandbox: "true"
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: sentinel-reader, namespace: sentinelops-demo }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: sentinel-executor, namespace: sentinelops-demo }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: sentinel-chaos, namespace: sentinelops-demo }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: sentinel-reader, namespace: sentinelops-demo }
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: sentinel-executor, namespace: sentinelops-demo }
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: sentinel-chaos, namespace: sentinelops-demo }
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: sentinel-reader, namespace: sentinelops-demo }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: sentinel-reader }
+subjects: [{ kind: ServiceAccount, name: sentinel-reader, namespace: sentinelops-demo }]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: sentinel-executor, namespace: sentinelops-demo }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: sentinel-executor }
+subjects: [{ kind: ServiceAccount, name: sentinel-executor, namespace: sentinelops-demo }]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: sentinel-chaos, namespace: sentinelops-demo }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: sentinel-chaos }
+subjects: [{ kind: ServiceAccount, name: sentinel-chaos, namespace: sentinelops-demo }]
+---
+# Long-lived tokens for the local demo only (hosted deployments use projected tokens / IRSA).
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: sentinel-reader-token
+  namespace: sentinelops-demo
+  annotations: { kubernetes.io/service-account.name: sentinel-reader }
+---
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: sentinel-executor-token
+  namespace: sentinelops-demo
+  annotations: { kubernetes.io/service-account.name: sentinel-executor }
+---
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: sentinel-chaos-token
+  namespace: sentinelops-demo
+  annotations: { kubernetes.io/service-account.name: sentinel-chaos }

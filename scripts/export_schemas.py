@@ -12,7 +12,9 @@ from pathlib import Path
 
 from pydantic import BaseModel
 from sentinel_contracts import (
+    ActionEvent,
     AlertEvent,
+    ApprovalEvent,
     Incident,
     IncidentEvent,
     IncidentTransition,
@@ -26,6 +28,8 @@ MODELS: dict[str, type[BaseModel]] = {
     "incident_transition.v1.json": IncidentTransition,
     "incident_event.v1.json": IncidentEvent,
     "investigation_event.v1.json": InvestigationEvent,
+    "approval_event.v1.json": ApprovalEvent,
+    "action_event.v1.json": ActionEvent,
 }
 
 

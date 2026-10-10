@@ -64,12 +64,22 @@ def wait_for(predicate: Callable[[], Any], timeout: float = 30.0, interval: floa
 
 
 @pytest.fixture(scope="session")
-def stack_up() -> None:
+def stack_up() -> Iterator[None]:
     try:
         httpx.get(f"{API}/healthz", timeout=2).raise_for_status()
         httpx.get(f"{INGEST}/healthz", timeout=2).raise_for_status()
     except httpx.HTTPError:
         pytest.skip("control plane not running (make up)")
+    yield
+    # Leave the live demo database tidy: close incidents the tests created.
+    import subprocess
+    import sys
+
+    subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "close_test_incidents.py")],
+        check=False,
+        capture_output=True,
+    )
 
 
 @pytest.fixture(scope="session")

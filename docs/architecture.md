@@ -41,8 +41,11 @@ the blueprint leaves open.
 | Investigation agents (LangGraph, ADR-005/008) | built | `services/investigator`; rules provider default, Claude optional |
 | Read-only telemetry + Kubernetes clients | built | `packages/telemetry-clients` |
 | Runbook catalog (allowlist) | built | `packages/policy` |
-| Approvals, policy, executor (kind) | Phase 4 | |
-| React dashboard, SSE | Phase 5 | |
+| kind cluster, least-privilege RBAC, kube-state-metrics | built | `infra/kind`, `scripts/kind-up.sh` |
+| Approvals (four-eyes, expiry, request hash) + policy engine | built | `apps/api/routes/remediation.py`, `packages/policy/engine.py` (ADR-006) |
+| Executor (dry-run + fixed JSON patches) and verifier | built | `services/executor`, `services/verifier` |
+| Fault injector (chaos SA) | built | `services/faultinjector` |
+| React dashboard + SSE (ADR-009) | built | `apps/dashboard`, served by nginx on :13001 |
 
 ## Signals
 
@@ -58,8 +61,9 @@ Recording rules (`service:http_requests:rate1m`, `service:http_errors_5xx:ratio1
 raw metric names only appear in the recording rules.
 
 ## Decisions taken during implementation
-- Phase 1 runs the demo workload in Docker Compose, not kind. kind arrives in Phase 4 when
-  the executor needs a real Kubernetes API (ADR-007).
+- Since Phase 4 the demo workload runs in kind; the Compose demo services remain behind the
+  `compose-workload` profile. Pods reach Compose services by name because the kind node joins
+  the `sentinelops` Docker network (ADR-007).
 - Loki and Tempo store data in the container layer: restart = clean slate for demos.
   Prometheus keeps a named volume (`make destroy` removes it).
 - Tempo is pinned to 2.10.x; Tempo 3.x changed its ingest architecture (ADR-003).

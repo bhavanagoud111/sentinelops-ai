@@ -11,9 +11,11 @@ Proposed, Accepted, Superseded by ADR-NNN.
 | [004](ADR-004-postgres-transactional-outbox.md) | PostgreSQL as system of record with transactional outbox | Accepted |
 | [005](ADR-005-langgraph-bounded-agents.md) | LangGraph workflow with bounded, typed, read-only tools | Accepted |
 | [008](ADR-008-mock-llm-provider.md) | Deterministic rules provider by default; Claude optional | Accepted |
+| [006](ADR-006-approval-allowlisted-runbooks.md) | Human approval and allowlisted Kubernetes runbooks | Accepted |
 | [007](ADR-007-compose-then-kind.md) | Docker Compose first, kind for Kubernetes workloads in Phase 4 | Accepted |
+| [009](ADR-009-sse-before-websockets.md) | Server-Sent Events before WebSockets | Accepted |
 | [010](ADR-010-correlation-policy.md) | Incident correlation key and reopen policy | Accepted |
 | [011](ADR-011-authn-authz.md) | Authentication and authorization | Accepted |
 
-Planned: 005 LangGraph bounded tools, 006 approval + allowlisted runbooks,
-008 mock LLM provider, 009 SSE before WebSockets.
+
+

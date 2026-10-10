@@ -9,6 +9,9 @@ dependencies = [
     "sentinel-correlator",
     "sentinel-api",
     "sentinel-investigator",
+    "sentinel-executor",
+    "sentinel-verifier",
+    "sentinel-faultinjector",
 ]
 
 [tool.uv.sources]
@@ -17,6 +20,9 @@ sentinel-relay = { workspace = true }
 sentinel-correlator = { workspace = true }
 sentinel-api = { workspace = true }
 sentinel-investigator = { workspace = true }
+sentinel-executor = { workspace = true }
+sentinel-verifier = { workspace = true }
+sentinel-faultinjector = { workspace = true }
 
 [build-system]
 requires = ["hatchling>=1.27"]

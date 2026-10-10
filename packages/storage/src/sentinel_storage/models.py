@@ -251,3 +251,83 @@ class IdempotencyKey(Base):
     status_code: Mapped[int] = mapped_column(Integer)
     response: Mapped[dict[str, Any]] = mapped_column()
     created_at: Mapped[datetime] = _now()
+
+
+# ---------------------------------------------------------------- Phase 4
+class RunbookRow(Base):
+    """Read-only mirror of the code-defined catalog (code is the source of truth)."""
+
+    __tablename__ = "runbooks"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    action_type: Mapped[str] = mapped_column(String(64))
+    title: Mapped[str] = mapped_column(String(128))
+    allowed_scopes: Mapped[dict[str, Any]] = mapped_column()
+    parameter_schema: Mapped[dict[str, Any]] = mapped_column()
+    risk_level: Mapped[str] = mapped_column(String(16))
+    version: Mapped[int] = mapped_column(Integer)
+
+
+class ApprovalRow(Base):
+    __tablename__ = "approvals"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    incident_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("incidents.id"), index=True)
+    investigation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("investigations.id"))
+    runbook_id: Mapped[str] = mapped_column(String(64))
+    params: Mapped[dict[str, Any]] = mapped_column()
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    risk: Mapped[str] = mapped_column(String(16))
+    target_revision: Mapped[int | None] = mapped_column(Integer)
+    request_hash: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(16))  # pending|approved|rejected|expired|consumed
+    requested_by: Mapped[str] = mapped_column(String(128))
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    approved_by: Mapped[str | None] = mapped_column(String(128))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision_reason: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    version: Mapped[int] = mapped_column(Integer, default=0)
+
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012 - SQLAlchemy API
+    __table_args__ = (
+        # One live approval per incident at a time.
+        Index(
+            "uq_approvals_open_incident",
+            "incident_id",
+            unique=True,
+            postgresql_where=text("status IN ('pending', 'approved')"),
+        ),
+    )
+
+
+class ExecutionRow(Base):
+    __tablename__ = "executions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    incident_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("incidents.id"), index=True)
+    approval_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("approvals.id"), unique=True)
+    runbook_id: Mapped[str] = mapped_column(String(64))
+    target: Mapped[str] = mapped_column(String(256))  # namespace/deployment
+    params: Mapped[dict[str, Any]] = mapped_column()
+    status: Mapped[str] = mapped_column(String(16))  # pending|running|succeeded|failed|blocked
+    idempotency_key: Mapped[str] = mapped_column(String(128), unique=True)
+    requested_by: Mapped[str] = mapped_column(String(128))
+    policy: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    command_template: Mapped[str] = mapped_column(Text, default="")
+    before_state: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    after_state: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    verification: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _now()
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        Index(
+            "uq_executions_active_target",
+            "target",
+            unique=True,
+            postgresql_where=text("status IN ('pending', 'running')"),
+        ),
+    )

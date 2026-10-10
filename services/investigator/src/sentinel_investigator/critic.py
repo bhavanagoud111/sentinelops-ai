@@ -35,7 +35,8 @@ CORROBORATION: dict[CauseCategory, set[EvidenceKind]] = {
     CauseCategory.BAD_CONFIG_ROLLOUT: {K.ROLLOUTS, K.ERROR_LOGS},
     CauseCategory.CRASH_LOOP_ROLLOUT: {K.POD_STATUS},
     CauseCategory.FEATURE_FLAG_REGRESSION: {K.ROLLOUTS},
-    CauseCategory.DEPENDENCY_FAILURE: {K.DEPENDENCY_CALLS},
+    # Outbound-call metrics, or the dependency's own latency/error symptoms.
+    CauseCategory.DEPENDENCY_FAILURE: {K.DEPENDENCY_CALLS, K.LATENCY_P95, K.ERROR_RATIO},
     CauseCategory.RESOURCE_SATURATION: {K.PROCESS_MEMORY, K.POD_STATUS},
     CauseCategory.UNKNOWN: set(),
 }
@@ -166,6 +167,7 @@ def plan(
     findings: list[CriticFinding],
     service_criticality: dict[str, str],
     dependents: dict[str, list[str]],
+    evidence: list[Evidence] | None = None,
 ) -> tuple[RemediationProposal | None, Hypothesis | None]:
     """Return (proposal, top accepted hypothesis)."""
     by_id = {f.hypothesis_id: f for f in findings}
@@ -186,6 +188,14 @@ def plan(
         return None, top
     rb = CATALOG[RunbookId(top.recommended_runbook_id)]
     params = parse_params(rb.id.value, dict(top.runbook_params))
+    revision = next(
+        (
+            e.signals.get("current_revision")
+            for e in evidence or []
+            if e.kind is K.ROLLOUTS and e.service == params.deployment and e.error is None
+        ),
+        None,
+    )
     return (
         RemediationProposal(
             runbook_id=rb.id.value,
@@ -200,7 +210,9 @@ def plan(
                 "criticality": service_criticality.get(params.deployment, "unknown"),
                 "dependents": dependents.get(params.deployment, []),
                 "risk": rb.risk.value,
+                "current_revision": revision,
             },
+            target_revision=int(revision) if isinstance(revision, int) else None,
         ),
         top,
     )

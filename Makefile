@@ -19,6 +19,13 @@ export PATH := $(PATH):$(DOCKER_DESKTOP_BIN)
 
 UV := uv run --frozen
 COMPOSE := $(DOCKER) compose -f infra/compose/docker-compose.yml
+BIN := $(CURDIR)/.cache/bin
+KUBECTL := "$(BIN)/kubectl" --kubeconfig "$(CURDIR)/.cache/kube/admin.kubeconfig"
+KIND_VERSION := v0.33.0
+KUBECTL_VERSION := v1.37.1
+HELM_VERSION := v4.3.0
+OS := $(shell uname -s | tr A-Z a-z)
+ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 
 .PHONY: help
 help: ## Show targets
@@ -58,11 +65,22 @@ schemas: ## Regenerate JSON Schemas for contracts
 check: lint typecheck test ## Everything CI runs (minus Docker)
 	$(UV) python scripts/export_schemas.py --check
 
+# ------------------------------------------------------------------ tools (repo-local)
+.PHONY: tools
+tools: ## Download pinned kind/kubectl/helm into .cache/bin (no global install)
+	@mkdir -p "$(BIN)"
+	@[ -x "$(BIN)/kind" ] || curl -sSfLo "$(BIN)/kind" https://kind.sigs.k8s.io/dl/$(KIND_VERSION)/kind-$(OS)-$(ARCH)
+	@[ -x "$(BIN)/kubectl" ] || { curl -sSfLo "$(BIN)/kubectl" https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/$(OS)/$(ARCH)/kubectl && \
+	  echo "$$(curl -sSfL https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/$(OS)/$(ARCH)/kubectl.sha256)  $(BIN)/kubectl" | shasum -a 256 -c >/dev/null; }
+	@[ -x "$(BIN)/helm" ] || { curl -sSfL https://get.helm.sh/helm-$(HELM_VERSION)-$(OS)-$(ARCH).tar.gz | tar -xz -C "$(BIN)" --strip-components=1 $(OS)-$(ARCH)/helm; }
+	@chmod +x "$(BIN)"/kind "$(BIN)"/kubectl "$(BIN)"/helm
+	@"$(BIN)/kind" version && "$(BIN)/kubectl" version --client | head -1 && "$(BIN)/helm" version --short
+
 # ------------------------------------------------------------------ stack
-.PHONY: up down destroy ps logs build config secrets migrate
+.PHONY: up down destroy ps logs build config secrets migrate network kind-up kind-down compose-up kubectl
 secrets: ## Generate per-machine random secrets into .cache/secrets (idempotent)
 	@mkdir -p .cache/secrets
-	@for s in ingest_token jwt_secret; do \
+	@for s in ingest_token jwt_secret faultinjector_token; do \
 	  [ -s .cache/secrets/$$s ] || { openssl rand -hex 32 > .cache/secrets/$$s && echo "generated .cache/secrets/$$s"; }; \
 	  chmod 644 .cache/secrets/$$s; \
 	done
@@ -73,20 +91,38 @@ config: secrets ## Validate compose file
 build: secrets ## Build images
 	$(COMPOSE) build
 
-up: secrets ## Start the local stack
+network:
+	@$(DOCKER) network inspect sentinelops >/dev/null 2>&1 || $(DOCKER) network create sentinelops >/dev/null
+
+kind-up: network ## Create/refresh the kind cluster with the demo workload
+	@scripts/kind-up.sh
+
+kind-down: ## Delete the kind cluster
+	-"$(BIN)/kind" delete cluster --name sentinelops
+
+compose-up: secrets network ## Start the Compose control plane + observability
 	$(COMPOSE) up -d --build --wait
+	@curl -s -X POST http://127.0.0.1:$${PROMETHEUS_PORT:-19090}/-/reload >/dev/null || true
+
+kubectl: ## Run kubectl against the demo cluster: make kubectl ARGS="get pods"
+	@$(KUBECTL) -n sentinelops-demo $(ARGS)
+
+up: secrets network kind-up compose-up ## Start everything (kind workload + Compose control plane)
 	@echo ""
 	@echo "  Grafana       http://127.0.0.1:$${GRAFANA_PORT:-13000}"
 	@echo "  Prometheus    http://127.0.0.1:$${PROMETHEUS_PORT:-19090}"
 	@echo "  Alertmanager  http://127.0.0.1:$${ALERTMANAGER_PORT:-19093}"
+	@echo "  Dashboard     http://127.0.0.1:$${DASHBOARD_PORT:-13001}"
 	@echo "  API docs      http://127.0.0.1:$${API_PORT:-18000}/docs"
 	@echo "  Checkout API  http://127.0.0.1:$${CHECKOUT_PORT:-18081}/docs"
 
-down: ## Stop the stack (keeps volumes)
+down: ## Stop Compose and pause the kind node (keeps data)
 	$(COMPOSE) down
+	-$(DOCKER) stop sentinelops-control-plane >/dev/null
 
-destroy: ## Stop the stack and delete its volumes (SentinelOps only)
+destroy: ## Delete Compose volumes and the kind cluster (SentinelOps only)
 	$(COMPOSE) down -v --remove-orphans
+	-"$(BIN)/kind" delete cluster --name sentinelops
 
 migrate: ## Apply database migrations
 	$(COMPOSE) run --rm migrate
@@ -98,22 +134,21 @@ logs: ## Tail logs (SERVICE=checkout to filter)
 	$(COMPOSE) logs -f --tail=100 $(SERVICE)
 
 # ------------------------------------------------------------------ demo
-.PHONY: inject-fault inject-latency clear-fault fault-status reset-demo verify-telemetry
-inject-fault: ## Scenario A: checkout 5xx via bad config
-	@scripts/inject-fault.sh checkout-5xx $(P)
+.PHONY: inject-fault inject-latency clear-fault fault-status reset-demo verify-telemetry scenario
+scenario: ## Inject a demo scenario: make scenario S=A   (A-E, see docs/runbooks.md)
+	@scripts/inject-fault.sh $(S)
 
-inject-latency: ## Scenario B: inventory dependency delay
-	@scripts/inject-fault.sh inventory-latency $(DELAY)
+inject-fault: ## Scenario A: checkout 5xx via a bad config rollout
+	@scripts/inject-fault.sh A
 
-clear-fault: ## Clear all demo faults
-	@scripts/inject-fault.sh clear
+inject-latency: ## Scenario B: inventory latency via a feature-flag rollout
+	@scripts/inject-fault.sh B
 
-fault-status: ## Show active demo faults
+fault-status: ## Show demo workload revisions and runtime faults
 	@scripts/inject-fault.sh status
 
-reset-demo: ## Clear faults and restart demo services to a clean state
-	-@scripts/inject-fault.sh clear
-	$(COMPOSE) restart inventory checkout loadgen
+reset-demo: ## Restore the demo workload baseline and clear runtime faults
+	@scripts/inject-fault.sh reset
 
 verify-telemetry: ## Phase 1 exit gate: metric + log + trace + alert for scenario A
 	$(UV) python scripts/verify_telemetry.py

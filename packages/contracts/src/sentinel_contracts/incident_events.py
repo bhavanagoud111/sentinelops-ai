@@ -72,3 +72,47 @@ class InvestigationEvent(BaseModel):
     top_hypothesis: dict[str, object] | None = None
     correlation_id: Identifier
     occurred_at: AwareDatetime
+
+
+class ApprovalEvent(BaseModel):
+    """Published to ``sentinel.approvals.v1`` on request and decision."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: Literal[1] = SCHEMA_VERSION
+    event_id: Identifier
+    approval_id: uuid.UUID
+    incident_id: uuid.UUID
+    runbook_id: str
+    params: dict[str, object]
+    status: Literal["pending", "approved", "rejected", "expired", "consumed"]
+    actor: str
+    reason: str | None = None
+    occurred_at: AwareDatetime
+
+
+class ActionEventKind(StrEnum):
+    REQUESTED = "requested"
+    BLOCKED = "blocked"
+    STARTED = "started"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    VERIFIED = "verified"
+    VERIFICATION_FAILED = "verification_failed"
+
+
+class ActionEvent(BaseModel):
+    """Published to ``sentinel.actions.v1`` across the execution lifecycle."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: Literal[1] = SCHEMA_VERSION
+    event_id: Identifier
+    kind: ActionEventKind
+    execution_id: uuid.UUID
+    incident_id: uuid.UUID
+    approval_id: uuid.UUID
+    runbook_id: str
+    actor: str
+    details: dict[str, object] = {}
+    occurred_at: AwareDatetime
