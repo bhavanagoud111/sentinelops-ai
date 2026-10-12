@@ -36,7 +36,7 @@ with RDS/MSK (or in-cluster Kafka) — see ADR-012.
 | Alert rules A–E + pipeline health | built | `infra/observability/prometheus/rules` |
 | Grafana service overview | built | provisioned, read-only |
 | Ingestion gateway (auth, rate limit, validation, dedup) | built | `services/ingestion` |
-| Transactional outbox + relay → Redpanda | built | `packages/storage/outbox.py`, `services/relay` |
+| Transactional outbox + relay → Redpanda | built | `packages/storage/src/sentinel_storage/outbox.py`, `services/relay` |
 | Correlator (ADR-010) | built | `services/correlator`, replay-safe via `processed_events` |
 | PostgreSQL + Alembic, hash-chained append-only audit | built | `packages/storage` |
 | Incidents REST API + JWT/RBAC (ADR-011) | built | `apps/api` |
@@ -44,7 +44,7 @@ with RDS/MSK (or in-cluster Kafka) — see ADR-012.
 | Read-only telemetry + Kubernetes clients | built | `packages/telemetry-clients` |
 | Runbook catalog (allowlist) | built | `packages/policy` |
 | kind cluster, least-privilege RBAC, kube-state-metrics | built | `infra/kind`, `scripts/kind-up.sh` |
-| Approvals (four-eyes, expiry, request hash) + policy engine | built | `apps/api/routes/remediation.py`, `packages/policy/engine.py` (ADR-006) |
+| Approvals (four-eyes, expiry, request hash) + policy engine | built | `apps/api/src/sentinel_api/routes/remediation.py`, `packages/policy/src/sentinel_policy/engine.py` (ADR-006) |
 | Executor (dry-run + fixed JSON patches) and verifier | built | `services/executor`, `services/verifier` |
 | Fault injector (chaos SA) | built | `services/faultinjector` |
 | React dashboard + SSE (ADR-009) | built | `apps/dashboard`, served by nginx on :13001 |
