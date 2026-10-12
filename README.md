@@ -325,7 +325,3 @@ plus a nightly full end-to-end run on kind. Contributor guide:
   and the investigation hands off to a human rather than guess.
 - **AWS:** the Terraform has been validated but not yet applied to a real AWS account;
   treat the first apply as staging.
-
-## License
-Copyright © 2026 bhavanagoud111. All rights reserved. The source is published for
-review and evaluation; please get in touch before reusing it.
